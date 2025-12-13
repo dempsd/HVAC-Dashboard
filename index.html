@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HVAC Dashboard by Home Comfort Analytics</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    .clickable-cell {
+      cursor: pointer;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .clickable-cell:hover {
+      background: rgba(34, 211, 238, 0.2) !important;
+      transform: scale(1.05);
+    }
+
+    .clickable-cell::after {
+      content: '📊';
+      opacity: 0;
+      margin-left: 4px;
+      transition: opacity 0.2s;
+    }
+
+    .clickable-cell:hover::after {
+      opacity: 1;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 2rem;
+      animation: fadeIn 0.2s;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal-content {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      border-radius: 16px;
+      border: 2px solid #22d3ee;
+      max-width: 1000px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+      animation: slideUp 0.3s;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .close-button {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: #ef4444;
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1.5rem;
+      font-weight: bold;
+      transition: all 0.2s;
+      z-index: 10;
+      line-height: 1;
+    }
+
+    .close-button:hover {
+      background: #dc2626;
+      transform: scale(1.1);
+    }
+
+    .chart-header {
+      margin-bottom: 1.5rem;
+    }
+
+    .chart-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.5rem;
+      color: #22d3ee;
+      margin-bottom: 0.5rem;
+    }
+
+    .chart-subtitle {
+      color: #94a3b8;
+      font-size: 0.875rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .control-label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .time-range-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .time-button {
+      background: #475569;
+      border: 1px solid #64748b;
+      color: #e2e8f0;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-family: 'JetBrains Mono', monospace;
+      transition: all 0.2s;
+    }
+
+    .time-button:hover {
+      background: #334155;
+      border-color: #22d3ee;
+    }
+
+    .time-button.active {
+      background: #22d3ee;
+      color: #0f172a;
+      border-color: #22d3ee;
+      font-weight: 600;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: rgba(30, 41, 59, 0.6);
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      color: #22d3ee;
+      font-weight: 700;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 350px;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+
+    .loading-spinner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 350px;
+      color: #22d3ee;
+    }
+
+    .spinner {
+      border: 3px solid rgba(34, 211, 238, 0.2);
+      border-top: 3px solid #22d3ee;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      padding: 1rem;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid #ef4444;
+      border-radius: 8px;
+      color: #fca5a5;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const SUPABASE_URL = 'https://uaksyrcwtbgxwnxbwroh.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVha3N5cmN3dGJneHdueGJ3cm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MTUwNDYsImV4cCI6MjA3ODI5MTA0Nn0.wLXUmL427RWHbBDesuaT1h0Z-RT0SX0fZGaXh1uKjIU';
+
+    const SITE_CONFIG = {
+      'Uniplus2': { type: 'GF2', systemKBtuh: 78 },
+      'Townhome': { type: 'GF1', systemKBtuh: 101 },
+      'FLcondo': { type: 'EH1', systemKBtuh: 17 }
+    };
+
+    // Map display names to database column names
+    const METRIC_COLUMN_MAP = {
+      'Indoor Temp': 'uniplus2_temp_f',
+      'Indoor RH': 'uniplus2_humidity',
+      'Outdoor Temp': 'outdoor_temp_f',
+      'Run Hours': 'heat_hrs',
+      'Heat Cycle': 'avg_heat_cycle',
+      'Current Heat Rate': 'heat_iatr_meas_daily',
+      'Heat Rate @ Design': 'heat_iatr_adjust_daily',
+      'Leakage Slope Norm': 'leakage_slope_normalized'
+    };
+
+    const METRIC_UNITS = {
+      'Indoor Temp': '°F',
+      'Indoor RH': '%',
+      'Outdoor Temp': '°F',
+      'Run Hours': 'hrs',
+      'Heat Cycle': 'min',
+      'Current Heat Rate': '°F/hr',
+      'Heat Rate @ Design': '°F/hr',
+      'Leakage Slope Norm': ''
+    };
+
+    // Aggregate data to 15-minute intervals
+    const aggregateData = (data, columnName) => {
+      const aggregated = [];
+      const interval = 15 * 60 * 1000; // 15 minutes in milliseconds
+      
+      if (data.length === 0) return [];
+      
+      let currentBucket = [];
+      let bucketStart = new Date(data[0].created_at).getTime();
+      bucketStart = Math.floor(bucketStart / interval) * interval;
+      
+      data.forEach(row => {
+        const timestamp = new Date(row.created_at).getTime();
+        const currentBucketTime = Math.floor(timestamp / interval) * interval;
+        
+        if (currentBucketTime > bucketStart) {
+          // Process current bucket
+          if (currentBucket.length > 0) {
+            const values = currentBucket.map(r => r[columnName]).filter(v => v !== null && v !== undefined);
+            if (values.length > 0) {
+              const avg = values.reduce((a, b) => a + b, 0) / values.length;
+              aggregated.push({
+                timestamp: new Date(bucketStart),
+                value: parseFloat(avg.toFixed(2))
+              });
+            }
+          }
+          // Start new bucket
+          currentBucket = [row];
+          bucketStart = currentBucketTime;
+        } else {
+          currentBucket.push(row);
+        }
+      });
+      
+      // Process final bucket
+      if (currentBucket.length > 0) {
+        const values = currentBucket.map(r => r[columnName]).filter(v => v !== null && v !== undefined);
+        if (values.length > 0) {
+          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+          aggregated.push({
+            timestamp: new Date(bucketStart),
+            value: parseFloat(avg.toFixed(2))
+          });
+        }
+      }
+      
+      return aggregated;
+    };
+
+    // Fetch real historical data from Supabase with pagination
+    const fetchHistoricalData = async (metric, timeRange, site) => {
+      const columnName = METRIC_COLUMN_MAP[metric];
+      const unit = METRIC_UNITS[metric];
+      
+      const days = timeRange === '24h' ? 1 : timeRange === '3d' ? 3 : 
+                   timeRange === '7d' ? 7 : 30;
+      const now = new Date().toISOString();
+      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      
+      const table = site === 'Uniplus2' ? 'uniplus2_readings' : 
+                    site === 'Townhome' ? 'townhome_readings' : 'flcondo_readings';
+      
+      // Fetch data in batches to overcome 1000-row limit
+      let allData = [];
+      let offset = 0;
+      const batchSize = 1000;
+      const maxRows = days * 480; // Maximum expected rows
+      
+      console.log(`Fetching ${metric} for ${site}: ${days} days (expect ~${maxRows} rows)`);
+      
+      while (offset < maxRows) {
+        const response = await fetch(
+          `${SUPABASE_URL}/rest/v1/${table}?select=created_at,${columnName}&created_at=gte.${startDate}&created_at=lte.${now}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
+          {
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`
+            }
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch data: ${response.statusText}`);
+        }
+        
+        const batch = await response.json();
+        console.log(`Batch ${offset/batchSize + 1}: Fetched ${batch.length} rows`);
+        
+        if (batch.length === 0) {
+          // No more data available
+          break;
+        }
+        
+        allData = allData.concat(batch);
+        
+        // If we got fewer than batchSize rows, we've reached the end
+        if (batch.length < batchSize) {
+          break;
+        }
+        
+        offset += batchSize;
+        
+        // Safety limit: stop after 20 batches (20,000 rows)
+        if (offset >= 20000) {
+          console.warn('Reached safety limit of 20,000 rows');
+          break;
+        }
+      }
+      
+      console.log(`Total rows fetched: ${allData.length}`);
+      console.log(`Date range: ${startDate} to ${now}`);
+      
+      // Reverse to get chronological order (oldest to newest)
+      const rawData = allData.reverse();
+      
+      // For 30-day view, aggregate to 15-minute intervals
+      let processedData;
+      if (timeRange === '30d') {
+        processedData = aggregateData(rawData, columnName);
+      } else {
+        // Use raw 3-minute data
+        processedData = rawData
+          .filter(row => row[columnName] !== null && row[columnName] !== undefined)
+          .map(row => ({
+            timestamp: new Date(row.created_at),
+            value: parseFloat(row[columnName])
+          }));
+      }
+      
+      return { data: processedData, unit };
+    };
+
+    const ScatterPlotModal = ({ onClose }) => {
+      const [scatterData, setScatterData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        const fetchScatterData = async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            // Fetch data from all three tables
+            const [uniplusRes, townhomeRes, flcondoRes] = await Promise.all([
+              fetch(
+                `${SUPABASE_URL}/rest/v1/uniplus2_readings?select=heat_iatr_meas_daily,outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                {
+                  headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                  }
+                }
+              ),
+              fetch(
+                `${SUPABASE_URL}/rest/v1/townhome_readings?select=heat_iatr_meas_daily,outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                {
+                  headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                  }
+                }
+              ),
+              fetch(
+                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=heat_iatr_meas_daily,outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                {
+                  headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`
+                  }
+                }
+              )
+            ]);
+
+            if (!uniplusRes.ok || !townhomeRes.ok || !flcondoRes.ok) {
+              throw new Error('Failed to fetch data from Supabase');
+            }
+
+            const uniplusData = await uniplusRes.json();
+            const townhomeData = await townhomeRes.json();
+            const flcondoData = await flcondoRes.json();
+
+            // Check if data is an array
+            if (!Array.isArray(uniplusData) || !Array.isArray(townhomeData) || !Array.isArray(flcondoData)) {
+              throw new Error('Unexpected data format from Supabase');
+            }
+
+            // Tag with site names
+            const taggedUniplusData = uniplusData.map(row => ({ ...row, site_name: 'Uniplus2' }));
+            const taggedTownhomeData = townhomeData.map(row => ({ ...row, site_name: 'Townhome' }));
+            const taggedFlcondoData = flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }));
+
+            // Combine and filter out NULL values
+            const allData = [...taggedUniplusData, ...taggedTownhomeData, ...taggedFlcondoData];
+            const filteredData = allData.filter(row => 
+              row.heat_iatr_meas_daily != null && 
+              row.outdoor_temp_f != null &&
+              !isNaN(row.heat_iatr_meas_daily) &&
+              !isNaN(row.outdoor_temp_f)
+            );
+
+            // Separate by site for different colors
+            const uniplusPoints = filteredData
+              .filter(row => row.site_name === 'Uniplus2')
+              .map(row => ({
+                x: parseFloat(row.outdoor_temp_f),
+                y: parseFloat(row.heat_iatr_meas_daily)
+              }));
+
+            const townhomePoints = filteredData
+              .filter(row => row.site_name === 'Townhome')
+              .map(row => ({
+                x: parseFloat(row.outdoor_temp_f),
+                y: parseFloat(row.heat_iatr_meas_daily)
+              }));
+
+            const flcondoPoints = filteredData
+              .filter(row => row.site_name === 'FLcondo')
+              .map(row => ({
+                x: parseFloat(row.outdoor_temp_f),
+                y: parseFloat(row.heat_iatr_meas_daily)
+              }));
+
+            setScatterData({ uniplusPoints, townhomePoints, flcondoPoints, totalPoints: filteredData.length });
+          } catch (err) {
+            setError(err.message);
+            console.error('Error loading scatter plot data:', err);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        fetchScatterData();
+      }, []);
+
+      useEffect(() => {
+        if (!scatterData || !chartRef.current || loading) return;
+
+        if (chartInstance.current) {
+          chartInstance.current.destroy();
+        }
+
+        const ctx = chartRef.current.getContext('2d');
+        
+        chartInstance.current = new Chart(ctx, {
+          type: 'scatter',
+          data: {
+            datasets: [
+              {
+                label: 'Uniplus2',
+                data: scatterData.uniplusPoints,
+                backgroundColor: 'rgba(34, 211, 238, 0.6)',
+                borderColor: '#22d3ee',
+                borderWidth: 1,
+                pointRadius: 4,
+                pointHoverRadius: 6
+              },
+              {
+                label: 'Townhome',
+                data: scatterData.townhomePoints,
+                backgroundColor: 'rgba(251, 191, 36, 0.6)',
+                borderColor: '#fbbf24',
+                borderWidth: 1,
+                pointRadius: 4,
+                pointHoverRadius: 6
+              },
+              {
+                label: 'FLcondo',
+                data: scatterData.flcondoPoints,
+                backgroundColor: 'rgba(168, 85, 247, 0.6)',
+                borderColor: '#a855f7',
+                borderWidth: 1,
+                pointRadius: 4,
+                pointHoverRadius: 6
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                labels: {
+                  color: '#e2e8f0',
+                  font: {
+                    size: 14
+                  }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                titleColor: '#22d3ee',
+                bodyColor: '#e2e8f0',
+                borderColor: '#22d3ee',
+                borderWidth: 1,
+                padding: 12,
+                callbacks: {
+                  label: (item) => {
+                    return `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F, Heat Rate: ${item.parsed.y.toFixed(2)}°F/hr`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: 'Outdoor Temperature (°F)',
+                  color: '#22d3ee',
+                  font: {
+                    size: 14,
+                    weight: 'bold'
+                  }
+                },
+                grid: {
+                  color: 'rgba(148, 163, 184, 0.1)'
+                },
+                ticks: {
+                  color: '#94a3b8'
+                }
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: 'Heat Rate (°F/hr)',
+                  color: '#22d3ee',
+                  font: {
+                    size: 14,
+                    weight: 'bold'
+                  }
+                },
+                grid: {
+                  color: 'rgba(148, 163, 184, 0.1)'
+                },
+                ticks: {
+                  color: '#94a3b8'
+                }
+              }
+            }
+          }
+        });
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+          }
+        };
+      }, [scatterData, loading]);
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="close-button" onClick={onClose}>×</button>
+
+            <div className="chart-header">
+              <h2 className="chart-title">Heat Rate vs Outdoor Temperature</h2>
+              <p className="chart-subtitle">
+                Scatter plot showing relationship between outdoor temperature and heating rate
+              </p>
+            </div>
+
+            {loading ? (
+              <div className="loading-spinner">
+                <div className="spinner"></div>
+                <div>Loading scatter plot data...</div>
+              </div>
+            ) : error ? (
+              <div className="error-message">
+                <strong>Error:</strong> {error}
+              </div>
+            ) : scatterData ? (
+              <>
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-label">Total Data Points</div>
+                    <div className="stat-value">{scatterData.totalPoints}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Uniplus2 Points</div>
+                    <div className="stat-value" style={{ color: '#22d3ee' }}>{scatterData.uniplusPoints.length}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Townhome Points</div>
+                    <div className="stat-value" style={{ color: '#fbbf24' }}>{scatterData.townhomePoints.length}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">FLcondo Points</div>
+                    <div className="stat-value" style={{ color: '#a855f7' }}>{scatterData.flcondoPoints.length}</div>
+                  </div>
+                </div>
+
+                <div className="chart-container">
+                  <canvas ref={chartRef}></canvas>
+                </div>
+
+                <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }}>
+                  <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>
+                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot helps identify the relationship between outdoor temperature and heating rate. 
+                    Points clustered together indicate consistent system performance, while outliers may indicate unusual conditions or system issues.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="error-message">
+                No data available.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const ChartModal = ({ metric, site, onClose }) => {
+      const [timeRange, setTimeRange] = useState('7d');
+      const [chartData, setChartData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        const loadData = async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const data = await fetchHistoricalData(metric, timeRange, site);
+            setChartData(data);
+          } catch (err) {
+            setError(err.message);
+            console.error('Error loading chart data:', err);
+          } finally {
+            setLoading(false);
+          }
+        };
+        
+        loadData();
+      }, [metric, timeRange, site]);
+
+      useEffect(() => {
+        if (!chartData || !chartRef.current || loading) return;
+
+        if (chartInstance.current) {
+          chartInstance.current.destroy();
+        }
+
+        const ctx = chartRef.current.getContext('2d');
+        
+        chartInstance.current = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: chartData.data.map((d, i) => i),
+            datasets: [{
+              label: `${metric} (${chartData.unit})`,
+              data: chartData.data.map(d => d.value),
+              borderColor: '#22d3ee',
+              backgroundColor: 'rgba(34, 211, 238, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4,
+              pointRadius: 0,
+              pointHoverRadius: 5,
+              pointHoverBackgroundColor: '#22d3ee',
+              pointHoverBorderColor: '#fff',
+              pointHoverBorderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                titleColor: '#22d3ee',
+                bodyColor: '#e2e8f0',
+                borderColor: '#22d3ee',
+                borderWidth: 1,
+                padding: 12,
+                displayColors: false,
+                callbacks: {
+                  title: (items) => {
+                    const index = items[0].dataIndex;
+                    const date = chartData.data[index].timestamp;
+                    return date.toLocaleString();
+                  },
+                  label: (item) => {
+                    return `${metric}: ${item.parsed.y.toFixed(2)} ${chartData.unit}`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: {
+                  color: 'rgba(148, 163, 184, 0.1)'
+                },
+                ticks: {
+                  color: '#94a3b8',
+                  maxTicksLimit: 8,
+                  callback: function(value, index) {
+                    const date = chartData.data[index]?.timestamp;
+                    if (!date) return '';
+                    if (timeRange === '24h') {
+                      return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                    } else {
+                      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }
+                  }
+                }
+              },
+              y: {
+                grid: {
+                  color: 'rgba(148, 163, 184, 0.1)'
+                },
+                ticks: {
+                  color: '#94a3b8',
+                  callback: (value) => value.toFixed(1) + ' ' + chartData.unit
+                }
+              }
+            }
+          }
+        });
+
+        return () => {
+          if (chartInstance.current) {
+            chartInstance.current.destroy();
+          }
+        };
+      }, [chartData, metric, timeRange, loading]);
+
+      const stats = chartData && chartData.data.length > 0 ? (() => {
+        const values = chartData.data.map(d => d.value);
+        return {
+          current: values[values.length - 1],
+          average: values.reduce((a, b) => a + b, 0) / values.length,
+          min: Math.min(...values),
+          max: Math.max(...values),
+          count: values.length
+        };
+      })() : null;
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="close-button" onClick={onClose}>×</button>
+
+            <div className="chart-header">
+              <h2 className="chart-title">{metric} - {site}</h2>
+              <p className="chart-subtitle">
+                Historical trend {timeRange === '30d' ? '(15-min avg)' : '(3-min intervals)'}
+              </p>
+            </div>
+
+            <div className="controls">
+              <div className="control-group">
+                <label className="control-label">Time Range</label>
+                <div className="time-range-buttons">
+                  {['24h', '3d', '7d', '30d'].map(range => (
+                    <button 
+                      key={range}
+                      className={`time-button ${timeRange === range ? 'active' : ''}`}
+                      onClick={() => setTimeRange(range)}
+                    >
+                      {range === '24h' ? '24 Hours' : range === '3d' ? '3 Days' : range === '7d' ? '7 Days' : '30 Days'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="loading-spinner">
+                <div className="spinner"></div>
+                <div>Loading data from Supabase...</div>
+              </div>
+            ) : error ? (
+              <div className="error-message">
+                <strong>Error:</strong> {error}
+              </div>
+            ) : stats ? (
+              <>
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-label">Current</div>
+                    <div className="stat-value">{stats.current.toFixed(1)} {chartData.unit}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Average</div>
+                    <div className="stat-value">{stats.average.toFixed(1)} {chartData.unit}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Minimum</div>
+                    <div className="stat-value">{stats.min.toFixed(1)} {chartData.unit}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Maximum</div>
+                    <div className="stat-value">{stats.max.toFixed(1)} {chartData.unit}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Data Points</div>
+                    <div className="stat-value">{stats.count}</div>
+                  </div>
+                </div>
+
+                <div className="chart-container">
+                  <canvas ref={chartRef}></canvas>
+                </div>
+              </>
+            ) : (
+              <div className="error-message">
+                No data available for this time range.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const RefreshCw = ({ size = 24, className = '' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
+      </svg>
+    );
+
+    const Pause = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+      </svg>
+    );
+
+    const Play = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+    );
+
+    const Clock = ({ size = 24 }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+    );
+
+    const HVACDashboard = () => {
+      const [data, setData] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [lastUpdated, setLastUpdated] = useState(null);
+      const [isPaused, setIsPaused] = useState(false);
+      const [countdown, setCountdown] = useState(180);
+      const [selectedChart, setSelectedChart] = useState(null);
+      const [showScatterPlot, setShowScatterPlot] = useState(false);
+      const [sortColumn, setSortColumn] = useState(null);
+      const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+
+      // Column mapping for sorting
+      const columnMap = {
+        'Most Recent Data': 'created_at',
+        'Site': 'site_name',
+        'Type': 'type',
+        'Indoor Temp (°F)': 'uniplus2_temp_f',
+        'Indoor RH (%)': 'uniplus2_humidity',
+        'Outdoor Temp (°F)': 'outdoor_temp_f',
+        'Run Hours': 'heat_hrs',
+        'ON/OFF Cycles': 'heat_cycles',
+        'Heat Cycle (min)': 'avg_heat_cycle',
+        'Current Heat Rate (°F/hr)': 'heat_iatr_meas_daily',
+        'Flags Prior Week': 'heat_flag_counter',
+        'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_daily',
+        'Leakage Slope Norm': 'leakage_slope_normalized',
+        'System kBtuh': 'systemKBtuh'
+      };
+
+      // Handle column header click for sorting
+      const handleSort = (columnName) => {
+        if (sortColumn === columnName) {
+          // Toggle direction if clicking same column
+          setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+          // New column, default to ascending
+          setSortColumn(columnName);
+          setSortDirection('asc');
+        }
+      };
+
+      // Sort data based on current sort column and direction
+      const getSortedData = (dataToSort) => {
+        if (!sortColumn) return dataToSort;
+
+        const columnKey = columnMap[sortColumn];
+        
+        return [...dataToSort].sort((a, b) => {
+          let aVal, bVal;
+          
+          // Get values based on column
+          if (columnKey === 'type') {
+            const configA = SITE_CONFIG[a.site_name] || {};
+            const configB = SITE_CONFIG[b.site_name] || {};
+            aVal = configA.type || '';
+            bVal = configB.type || '';
+          } else if (columnKey === 'systemKBtuh') {
+            const configA = SITE_CONFIG[a.site_name] || {};
+            const configB = SITE_CONFIG[b.site_name] || {};
+            aVal = configA.systemKBtuh || 0;
+            bVal = configB.systemKBtuh || 0;
+          } else {
+            aVal = a[columnKey];
+            bVal = b[columnKey];
+          }
+
+          // Handle null/undefined values
+          if (aVal == null) return 1;
+          if (bVal == null) return -1;
+
+          // Compare based on type
+          if (columnKey === 'created_at') {
+            aVal = new Date(aVal);
+            bVal = new Date(bVal);
+          } else if (columnKey === 'site_name' || columnKey === 'type') {
+            // String comparison
+            aVal = String(aVal).toLowerCase();
+            bVal = String(bVal).toLowerCase();
+          }
+          
+          // Numeric or date comparison
+          let comparison = 0;
+          if (aVal < bVal) comparison = -1;
+          if (aVal > bVal) comparison = 1;
+          
+          return sortDirection === 'asc' ? comparison : -comparison;
+        });
+      };
+
+      const fetchData = useCallback(async () => {
+        setLoading(true);
+        try {
+          const [uniplusRes, townhomeRes, flcondoRes] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/uniplus2_readings?select=*&order=created_at.desc`, {
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+              }
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/townhome_readings?select=*&order=created_at.desc`, {
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+              }
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/flcondo_readings?select=*&order=created_at.desc`, {
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+              }
+            })
+          ]);
+
+          const uniplusData = await uniplusRes.json();
+          const townhomeData = await townhomeRes.json();
+          const flcondoData = await flcondoRes.json();
+
+          const taggedUniplusData = uniplusData.map(row => ({ ...row, site_name: 'Uniplus2' }));
+          const taggedTownhomeData = townhomeData.map(row => ({ ...row, site_name: 'Townhome' }));
+          const taggedFlcondoData = flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }));
+
+          const siteMap = new Map();
+          
+          [...taggedUniplusData, ...taggedTownhomeData, ...taggedFlcondoData].forEach(row => {
+            const siteName = row.site_name;
+            if (!siteMap.has(siteName) || new Date(row.created_at) > new Date(siteMap.get(siteName).created_at)) {
+              siteMap.set(siteName, row);
+            }
+          });
+
+          const combinedData = Array.from(siteMap.values()).sort((a, b) => 
+            (a.site_name || '').localeCompare(b.site_name || '')
+          );
+
+          setData(combinedData);
+          setLastUpdated(new Date());
+          setCountdown(180);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        fetchData();
+      }, [fetchData]);
+
+      useEffect(() => {
+        if (isPaused) return;
+
+        const interval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              fetchData();
+              return 180;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => clearInterval(interval);
+      }, [isPaused, fetchData]);
+
+      const handleManualRefresh = () => {
+        fetchData();
+      };
+
+      const togglePause = () => {
+        setIsPaused(!isPaused);
+      };
+
+      const getRHFlagColor = (rh) => {
+        if (rh > 70 || rh < 20) return '#ef4444';
+        if (rh > 60 || rh < 30) return '#f59e0b';
+        return 'transparent';
+      };
+
+      const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+      };
+
+      const handleCellClick = (metric, site) => {
+        setSelectedChart({ metric, site });
+      };
+
+      return (
+        <div style={{
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+          fontFamily: '"JetBrains Mono", "Courier New", monospace',
+          padding: '2rem',
+          color: '#e2e8f0'
+        }}>
+          <style>{`
+            @keyframes pulse-glow {
+              0%, 100% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.3); }
+              50% { box-shadow: 0 0 40px rgba(34, 211, 238, 0.6); }
+            }
+            
+            @keyframes slide-in {
+              from { opacity: 0; transform: translateY(-10px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            
+            @keyframes spinning {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+            
+            @keyframes flash-dot {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.3; }
+            }
+            
+            .status-indicator {
+              animation: pulse-glow 2s infinite;
+            }
+            
+            .table-row {
+              animation: slide-in 0.3s ease-out;
+            }
+            
+            .spinning {
+              animation: spinning 1s linear infinite;
+            }
+          `}</style>
+
+          <div style={{
+            maxWidth: '1600px',
+            margin: '0 auto'
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+              borderRadius: '16px',
+              padding: '2rem',
+              marginBottom: '2rem',
+              border: '1px solid rgba(34, 211, 238, 0.2)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                width: '300px',
+                height: '300px',
+                background: 'radial-gradient(circle, rgba(34, 211, 238, 0.1) 0%, transparent 70%)',
+                pointerEvents: 'none'
+              }} />
+              
+              <h1 style={{
+                fontFamily: '"Orbitron", sans-serif',
+                fontSize: '3rem',
+                fontWeight: 700,
+                margin: 0,
+                background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                letterSpacing: '1px'
+              }}>
+                HVAC Dashboard
+              </h1>
+              <p style={{
+                fontFamily: '"Orbitron", sans-serif',
+                fontSize: '1.5rem',
+                fontWeight: 400,
+                fontStyle: 'italic',
+                margin: '0.5rem 0 0 0',
+                color: '#94a3b8',
+                letterSpacing: '0.5px',
+                WebkitTextStroke: '0.75px #22d3ee',
+                textStroke: '0.75px #22d3ee'
+              }}>
+                by Home Comfort Analytics
+              </p>
+              
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '2rem',
+                marginTop: '1.5rem',
+                flexWrap: 'wrap'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.9rem',
+                  color: '#94a3b8'
+                }}>
+                  <Clock size={16} />
+                  Last Updated: {lastUpdated ? lastUpdated.toLocaleString() : 'Loading...'}
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.9rem',
+                  color: '#94a3b8'
+                }}>
+                  <div className={isPaused ? '' : 'status-indicator'} style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: isPaused ? '#64748b' : '#22d3ee'
+                  }} />
+                  Next update: {isPaused ? 'Paused' : formatTime(countdown)}
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  gap: '0.5rem',
+                  marginLeft: 'auto'
+                }}>
+                  <button
+                    onClick={togglePause}
+                    style={{
+                      background: isPaused ? '#22d3ee' : '#475569',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '0.5rem 1rem',
+                      color: isPaused ? '#0f172a' : '#e2e8f0',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    {isPaused ? <Play size={16} /> : <Pause size={16} />}
+                    {isPaused ? 'Resume' : 'Pause'}
+                  </button>
+                  
+                  <button
+                    onClick={handleManualRefresh}
+                    disabled={loading}
+                    style={{
+                      background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '0.5rem 1rem',
+                      color: '#0f172a',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      opacity: loading ? 0.6 : 1,
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => !loading && (e.target.style.transform = 'scale(1.05)')}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    <RefreshCw size={16} className={loading ? 'spinning' : ''} />
+                    Refresh Now
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowScatterPlot(true)}
+                    style={{
+                      background: '#22c55e',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '0.5rem 1rem',
+                      color: '#0f172a',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    📈 Heat Rate vs Outdoor Temp
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Data Table */}
+            <div style={{
+              background: 'rgba(30, 41, 59, 0.6)',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              border: '1px solid rgba(34, 211, 238, 0.2)',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{
+                overflowX: 'auto'
+              }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontSize: '0.875rem',
+                  tableLayout: 'auto'
+                }}>
+                  <thead>
+                    <tr style={{
+                      background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                      borderBottom: '2px solid #22d3ee'
+                    }}>
+                      {[
+                        'Most Recent Data',
+                        'Site',
+                        'Type',
+                        'Indoor Temp (°F)',
+                        'Indoor RH (%)',
+                        'Outdoor Temp (°F)',
+                        'Run Hours',
+                        'ON/OFF Cycles',
+                        'Heat Cycle (min)',
+                        'Current Heat Rate (°F/hr)',
+                        'Flags Prior Week',
+                        'Heat Rate @ Design (°F/hr)',
+                        'Leakage Slope Norm',
+                        'System kBtuh'
+                      ].map(columnName => (
+                        <th 
+                          key={columnName}
+                          style={{
+                            ...headerStyle,
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => handleSort(columnName)}
+                          onMouseEnter={(e) => e.target.style.color = '#0ea5e9'}
+                          onMouseLeave={(e) => e.target.style.color = '#22d3ee'}
+                        >
+                          {columnName}
+                          {sortColumn === columnName && (
+                            <span style={{ marginLeft: '4px', fontSize: '0.8rem' }}>
+                              {sortDirection === 'asc' ? '▲' : '▼'}
+                            </span>
+                          )}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading && data.length === 0 ? (
+                      <tr>
+                        <td colSpan="14" style={{
+                          textAlign: 'center',
+                          padding: '3rem',
+                          color: '#94a3b8'
+                        }}>
+                          Loading data...
+                        </td>
+                      </tr>
+                    ) : (
+                      getSortedData(data).map((row, idx) => {
+                        const siteName = row.site_name || 'Unknown';
+                        const config = SITE_CONFIG[siteName] || { type: 'N/A', systemKBtuh: 0 };
+                        const rhFlagColor = getRHFlagColor(row.uniplus2_humidity);
+                        
+                        return (
+                          <tr 
+                            key={idx}
+                            className="table-row"
+                            style={{
+                              borderBottom: '1px solid rgba(51, 65, 85, 0.5)',
+                              transition: 'background 0.2s',
+                              animationDelay: `${idx * 0.05}s`
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(34, 211, 238, 0.05)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <td style={cellStyle}>{row.created_at ? new Date(row.created_at).toLocaleString('en-US', { 
+                              year: 'numeric', 
+                              month: '2-digit', 
+                              day: '2-digit', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            }) : 'N/A'}</td>
+                            <td style={cellStyle}>{siteName}</td>
+                            <td style={cellStyle}>{config.type}</td>
+                            <td 
+                              className="clickable-cell"
+                              style={cellStyle}
+                              onClick={() => handleCellClick('Indoor Temp', siteName)}
+                            >
+                              <span style={{
+                                display: 'inline-block',
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: row.uniplus2_digital_input1 === 1 ? '#ef4444' : 
+                                           row.uniplus2_digital_input2 === 1 ? '#3b82f6' : '#ef4444',
+                                marginRight: '6px',
+                                animation: (row.uniplus2_digital_input1 === 1 || row.uniplus2_digital_input2 === 1) ? 'flash-dot 1.5s infinite' : 'none',
+                                opacity: (row.uniplus2_digital_input1 === 1 || row.uniplus2_digital_input2 === 1) ? 1 : 0,
+                                boxShadow: row.uniplus2_digital_input1 === 1 ? '0 0 4px rgba(239, 68, 68, 0.6)' :
+                                          row.uniplus2_digital_input2 === 1 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
+                                verticalAlign: 'middle'
+                              }} />
+                              {row.uniplus2_temp_f?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td 
+                              className="clickable-cell"
+                              style={{
+                                ...cellStyle,
+                                background: rhFlagColor,
+                                fontWeight: rhFlagColor !== 'transparent' ? 600 : 400
+                              }}
+                              onClick={() => handleCellClick('Indoor RH', siteName)}
+                            >
+                              {row.uniplus2_humidity?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td 
+                              className="clickable-cell"
+                              style={cellStyle}
+                              onClick={() => handleCellClick('Outdoor Temp', siteName)}
+                            >
+                              {row.outdoor_temp_f?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td 
+                              className="clickable-cell"
+                              style={cellStyle}
+                              onClick={() => handleCellClick('Run Hours', siteName)}
+                            >
+                              {row.heat_hrs?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td style={cellStyle}>{row.heat_cycles ?? 0}</td>
+                            <td 
+                              className="clickable-cell"
+                              style={cellStyle}
+                              onClick={() => handleCellClick('Heat Cycle', siteName)}
+                            >
+                              {row.avg_heat_cycle?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td 
+                              className="clickable-cell"
+                              style={cellStyle}
+                              onClick={() => handleCellClick('Current Heat Rate', siteName)}
+                            >
+                              {(() => {
+                                const value = row.heat_iatr_meas_daily;
+                                if (value === null || value === undefined) return 'N/A';
+                                if (typeof value === 'string') return parseFloat(value).toFixed(1);
+                                if (typeof value === 'number') return value.toFixed(1);
+                                return 'N/A';
+                              })()}
+                            </td>
+                            <td style={cellStyle}>{row.heat_flag_counter ?? 0}</td>
+                            <td 
+                              className="clickable-cell"
+                              style={cellStyle}
+                              onClick={() => handleCellClick('Heat Rate @ Design', siteName)}
+                            >
+                              {row.heat_iatr_adjust_daily?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td 
+                              className="clickable-cell"
+                              style={cellStyle}
+                              onClick={() => handleCellClick('Leakage Slope Norm', siteName)}
+                            >
+                              {row.leakage_slope_normalized?.toFixed(2) || 'N/A'}
+                            </td>
+                            <td style={cellStyle}>{Math.round(config.systemKBtuh)}</td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div style={{
+              marginTop: '2rem',
+              padding: '1.5rem',
+              background: 'rgba(30, 41, 59, 0.6)',
+              borderRadius: '12px',
+              border: '1px solid rgba(34, 211, 238, 0.2)',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <h3 style={{
+                fontSize: '1rem',
+                fontWeight: 700,
+                marginBottom: '1rem',
+                color: '#22d3ee',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>
+                💡 Interactive Dashboard
+              </h3>
+              <div style={{
+                display: 'flex',
+                gap: '2rem',
+                fontSize: '0.875rem',
+                flexWrap: 'wrap'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    background: '#f59e0b',
+                    borderRadius: '4px'
+                  }} />
+                  <span>Yellow: RH &gt; 60% or &lt; 30%</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    background: '#ef4444',
+                    borderRadius: '4px'
+                  }} />
+                  <span>Red: RH &gt; 70% or &lt; 20%</span>
+                </div>
+                <div style={{ color: '#22d3ee' }}>
+                  📊 Click any metric value to view historical trends
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {selectedChart && (
+            <ChartModal 
+              metric={selectedChart.metric}
+              site={selectedChart.site}
+              onClose={() => setSelectedChart(null)}
+            />
+          )}
+
+          {showScatterPlot && (
+            <ScatterPlotModal 
+              onClose={() => setShowScatterPlot(false)}
+            />
+          )}
+        </div>
+      );
+    };
+
+    const headerStyle = {
+      padding: '0.75rem 0.5rem',
+      textAlign: 'left',
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      fontSize: '0.7rem',
+      letterSpacing: '0.5px',
+      color: '#22d3ee',
+      whiteSpace: 'normal',
+      maxWidth: '120px',
+      verticalAlign: 'top',
+      lineHeight: '1.2'
+    };
+
+    const cellStyle = {
+      padding: '0.75rem 0.5rem',
+      textAlign: 'left',
+      color: '#cbd5e1',
+      whiteSpace: 'nowrap',
+      fontSize: '0.8rem'
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<HVACDashboard />);
+  </script>
+</body>
+</html>
