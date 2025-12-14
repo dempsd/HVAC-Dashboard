@@ -268,7 +268,7 @@
       'Heat Cycle': 'avg_heat_cycle',
       'Current Heat Rate': 'heat_iatr_meas_daily',
       'Heat Rate @ Design': 'heat_iatr_adjust_daily',
-      'Leakage Slope Norm': 'leakage_slope_normalized'
+      'House Air Leakage': 'leakage_slope_normalized'
     };
 
     const METRIC_UNITS = {
@@ -279,7 +279,7 @@
       'Heat Cycle': 'min',
       'Current Heat Rate': '°F/hr',
       'Heat Rate @ Design': '°F/hr',
-      'Leakage Slope Norm': ''
+      'House Air Leakage': ''
     };
 
     // Aggregate data to 15-minute intervals
@@ -954,11 +954,11 @@
         'Outdoor Temp (°F)': 'outdoor_temp_f',
         'Run Hours': 'heat_hrs',
         'ON/OFF Cycles': 'heat_cycles',
-        'Heat Cycle (min)': 'avg_heat_cycle',
+        'Avg Heat Cycle (min)': 'avg_heat_cycle',
         'Current Heat Rate (°F/hr)': 'heat_iatr_meas_daily',
         'Flags Prior Week': 'heat_flag_counter',
         'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_daily',
-        'Leakage Slope Norm': 'leakage_slope_normalized',
+        'House Air Leakage': 'leakage_slope_normalized',
         'System kBtuh': 'systemKBtuh'
       };
 
@@ -1356,11 +1356,11 @@
                         'Outdoor Temp (°F)',
                         'Run Hours',
                         'ON/OFF Cycles',
-                        'Heat Cycle (min)',
+                        'Avg Heat Cycle (min)',
                         'Current Heat Rate (°F/hr)',
                         'Flags Prior Week',
                         'Heat Rate @ Design (°F/hr)',
-                        'Leakage Slope Norm',
+                        'House Air Leakage',
                         'System kBtuh'
                       ].map(columnName => (
                         <th 
@@ -1501,7 +1501,7 @@
                             <td 
                               className="clickable-cell"
                               style={cellStyle}
-                              onClick={() => handleCellClick('Leakage Slope Norm', siteName)}
+                              onClick={() => handleCellClick('House Air Leakage', siteName)}
                             >
                               {row.leakage_slope_normalized?.toFixed(2) || 'N/A'}
                             </td>
