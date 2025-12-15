@@ -949,6 +949,7 @@
         'Most Recent Data': 'created_at',
         'Site': 'site_name',
         'Type': 'type',
+        'Heat Capacity (kBtuh)': 'systemKBtuh',
         'Indoor Temp (°F)': 'uniplus2_temp_f',
         'Indoor RH (%)': 'uniplus2_humidity',
         'Outdoor Temp (°F)': 'outdoor_temp_f',
@@ -958,8 +959,7 @@
         'Current Heat Rate (°F/hr)': 'heat_iatr_meas_daily',
         'Flags Prior Week': 'heat_flag_counter',
         'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_daily',
-        'House Air Leakage': 'leakage_slope_normalized',
-        'System kBtuh': 'systemKBtuh'
+        'House Air Leakage': 'leakage_slope_normalized'
       };
 
       // Handle column header click for sorting
@@ -1351,6 +1351,7 @@
                         'Most Recent Data',
                         'Site',
                         'Type',
+                        'Heat Capacity (kBtuh)',
                         'Indoor Temp (°F)',
                         'Indoor RH (%)',
                         'Outdoor Temp (°F)',
@@ -1360,13 +1361,15 @@
                         'Current Heat Rate (°F/hr)',
                         'Flags Prior Week',
                         'Heat Rate @ Design (°F/hr)',
-                        'House Air Leakage',
-                        'System kBtuh'
+                        'House Air Leakage'
                       ].map(columnName => (
                         <th 
                           key={columnName}
                           style={{
                             ...headerStyle,
+                            background: (columnName === 'Heat Rate @ Design (°F/hr)' || columnName === 'House Air Leakage') 
+                              ? 'rgba(34, 211, 238, 0.1)' 
+                              : 'transparent',
                             cursor: 'pointer',
                             userSelect: 'none',
                             transition: 'all 0.2s'
@@ -1423,6 +1426,7 @@
                             }) : 'N/A'}</td>
                             <td style={cellStyle}>{siteName}</td>
                             <td style={cellStyle}>{config.type}</td>
+                            <td style={cellStyle}>{Math.round(config.systemKBtuh)}</td>
                             <td 
                               className="clickable-cell"
                               style={cellStyle}
@@ -1493,19 +1497,24 @@
                             <td style={cellStyle}>{row.heat_flag_counter ?? 0}</td>
                             <td 
                               className="clickable-cell"
-                              style={cellStyle}
+                              style={{
+                                ...cellStyle,
+                                background: 'rgba(34, 211, 238, 0.1)'
+                              }}
                               onClick={() => handleCellClick('Heat Rate @ Design', siteName)}
                             >
                               {row.heat_iatr_adjust_daily?.toFixed(1) || 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
-                              style={cellStyle}
+                              style={{
+                                ...cellStyle,
+                                background: 'rgba(34, 211, 238, 0.1)'
+                              }}
                               onClick={() => handleCellClick('House Air Leakage', siteName)}
                             >
                               {row.leakage_slope_normalized?.toFixed(2) || 'N/A'}
                             </td>
-                            <td style={cellStyle}>{Math.round(config.systemKBtuh)}</td>
                           </tr>
                         );
                       })
