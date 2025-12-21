@@ -254,7 +254,7 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVha3N5cmN3dGJneHdueGJ3cm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MTUwNDYsImV4cCI6MjA3ODI5MTA0Nn0.wLXUmL427RWHbBDesuaT1h0Z-RT0SX0fZGaXh1uKjIU';
 
     const SITE_CONFIG = {
-      'Uniplus2': { type: 'GF2', systemKBtuh: 78 },
+      'Kampen': { type: 'GF2', systemKBtuh: 78 },
       'Townhome': { type: 'GF1', systemKBtuh: 101 },
       'FLcondo': { type: 'EH1', systemKBtuh: 17 }
     };
@@ -337,12 +337,18 @@
       const columnName = METRIC_COLUMN_MAP[metric];
       const unit = METRIC_UNITS[metric];
       
+      // Adjust column name for Kampen site (uses kampen_* instead of uniplus2_*)
+      let actualColumnName = columnName;
+      if (site === 'Kampen' && (columnName === 'uniplus2_temp_f' || columnName === 'uniplus2_humidity')) {
+        actualColumnName = columnName.replace('uniplus2_', 'kampen_');
+      }
+      
       const days = timeRange === '24h' ? 1 : timeRange === '3d' ? 3 : 
                    timeRange === '7d' ? 7 : 30;
       const now = new Date().toISOString();
       const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
       
-      const table = site === 'Uniplus2' ? 'uniplus2_readings' : 
+      const table = site === 'Kampen' ? 'kampen_readings' : 
                     site === 'Townhome' ? 'townhome_readings' : 'flcondo_readings';
       
       // Fetch data in batches to overcome 1000-row limit
@@ -355,7 +361,7 @@
       
       while (offset < maxRows) {
         const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/${table}?select=created_at,${columnName}&created_at=gte.${startDate}&created_at=lte.${now}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
+          `${SUPABASE_URL}/rest/v1/${table}?select=created_at,${actualColumnName}&created_at=gte.${startDate}&created_at=lte.${now}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
           {
             headers: {
               'apikey': SUPABASE_KEY,
@@ -401,14 +407,14 @@
       // For 30-day view, aggregate to 15-minute intervals
       let processedData;
       if (timeRange === '30d') {
-        processedData = aggregateData(rawData, columnName);
+        processedData = aggregateData(rawData, actualColumnName);
       } else {
         // Use raw 3-minute data
         processedData = rawData
-          .filter(row => row[columnName] !== null && row[columnName] !== undefined)
+          .filter(row => row[actualColumnName] !== null && row[actualColumnName] !== undefined)
           .map(row => ({
             timestamp: new Date(row.created_at),
-            value: parseFloat(row[columnName])
+            value: parseFloat(row[actualColumnName])
           }));
       }
       
@@ -428,9 +434,9 @@
           setError(null);
           try {
             // Fetch data from all three tables
-            const [uniplusRes, townhomeRes, flcondoRes] = await Promise.all([
+            const [kampenRes, townhomeRes, flcondoRes] = await Promise.all([
               fetch(
-                `${SUPABASE_URL}/rest/v1/uniplus2_readings?select=heat_iatr_meas_daily,outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/kampen_readings?select=heat_iatr_meas_daily,outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -458,26 +464,26 @@
               )
             ]);
 
-            if (!uniplusRes.ok || !townhomeRes.ok || !flcondoRes.ok) {
+            if (!kampenRes.ok || !townhomeRes.ok || !flcondoRes.ok) {
               throw new Error('Failed to fetch data from Supabase');
             }
 
-            const uniplusData = await uniplusRes.json();
+            const kampenData = await kampenRes.json();
             const townhomeData = await townhomeRes.json();
             const flcondoData = await flcondoRes.json();
 
             // Check if data is an array
-            if (!Array.isArray(uniplusData) || !Array.isArray(townhomeData) || !Array.isArray(flcondoData)) {
+            if (!Array.isArray(kampenData) || !Array.isArray(townhomeData) || !Array.isArray(flcondoData)) {
               throw new Error('Unexpected data format from Supabase');
             }
 
             // Tag with site names
-            const taggedUniplusData = uniplusData.map(row => ({ ...row, site_name: 'Uniplus2' }));
+            const taggedKampenData = kampenData.map(row => ({ ...row, site_name: 'Kampen' }));
             const taggedTownhomeData = townhomeData.map(row => ({ ...row, site_name: 'Townhome' }));
             const taggedFlcondoData = flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }));
 
             // Combine and filter out NULL values
-            const allData = [...taggedUniplusData, ...taggedTownhomeData, ...taggedFlcondoData];
+            const allData = [...taggedKampenData, ...taggedTownhomeData, ...taggedFlcondoData];
             const filteredData = allData.filter(row => 
               row.heat_iatr_meas_daily != null && 
               row.outdoor_temp_f != null &&
@@ -486,8 +492,8 @@
             );
 
             // Separate by site for different colors
-            const uniplusPoints = filteredData
-              .filter(row => row.site_name === 'Uniplus2')
+            const kampenPoints = filteredData
+              .filter(row => row.site_name === 'Kampen')
               .map(row => ({
                 x: parseFloat(row.outdoor_temp_f),
                 y: parseFloat(row.heat_iatr_meas_daily)
@@ -507,7 +513,7 @@
                 y: parseFloat(row.heat_iatr_meas_daily)
               }));
 
-            setScatterData({ uniplusPoints, townhomePoints, flcondoPoints, totalPoints: filteredData.length });
+            setScatterData({ kampenPoints, townhomePoints, flcondoPoints, totalPoints: filteredData.length });
           } catch (err) {
             setError(err.message);
             console.error('Error loading scatter plot data:', err);
@@ -533,8 +539,8 @@
           data: {
             datasets: [
               {
-                label: 'Uniplus2',
-                data: scatterData.uniplusPoints,
+                label: 'Kampen',
+                data: scatterData.kampenPoints,
                 backgroundColor: 'rgba(34, 211, 238, 0.6)',
                 borderColor: '#22d3ee',
                 borderWidth: 1,
@@ -663,8 +669,8 @@
                     <div className="stat-value">{scatterData.totalPoints}</div>
                   </div>
                   <div className="stat-card">
-                    <div className="stat-label">Uniplus2 Points</div>
-                    <div className="stat-value" style={{ color: '#22d3ee' }}>{scatterData.uniplusPoints.length}</div>
+                    <div className="stat-label">Kampen Points</div>
+                    <div className="stat-value" style={{ color: '#22d3ee' }}>{scatterData.kampenPoints.length}</div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-label">Townhome Points</div>
@@ -994,6 +1000,13 @@
             const configB = SITE_CONFIG[b.site_name] || {};
             aVal = configA.systemKBtuh || 0;
             bVal = configB.systemKBtuh || 0;
+          } else if (columnKey === 'uniplus2_temp_f' || columnKey === 'uniplus2_humidity') {
+            // Handle site-specific columns (Kampen uses kampen_*, others use uniplus2_*)
+            const prefixA = a.site_name === 'Kampen' ? 'kampen' : 'uniplus2';
+            const prefixB = b.site_name === 'Kampen' ? 'kampen' : 'uniplus2';
+            const suffix = columnKey.replace('uniplus2_', '');
+            aVal = a[`${prefixA}_${suffix}`];
+            bVal = b[`${prefixB}_${suffix}`];
           } else {
             aVal = a[columnKey];
             bVal = b[columnKey];
@@ -1025,8 +1038,8 @@
       const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-          const [uniplusRes, townhomeRes, flcondoRes] = await Promise.all([
-            fetch(`${SUPABASE_URL}/rest/v1/uniplus2_readings?select=*&order=created_at.desc`, {
+          const [kampenRes, townhomeRes, flcondoRes] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/kampen_readings?select=*&order=created_at.desc`, {
               headers: {
                 'apikey': SUPABASE_KEY,
                 'Authorization': `Bearer ${SUPABASE_KEY}`
@@ -1046,17 +1059,17 @@
             })
           ]);
 
-          const uniplusData = await uniplusRes.json();
+          const kampenData = await kampenRes.json();
           const townhomeData = await townhomeRes.json();
           const flcondoData = await flcondoRes.json();
 
-          const taggedUniplusData = uniplusData.map(row => ({ ...row, site_name: 'Uniplus2' }));
+          const taggedKampenData = kampenData.map(row => ({ ...row, site_name: 'Kampen' }));
           const taggedTownhomeData = townhomeData.map(row => ({ ...row, site_name: 'Townhome' }));
           const taggedFlcondoData = flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }));
 
           const siteMap = new Map();
           
-          [...taggedUniplusData, ...taggedTownhomeData, ...taggedFlcondoData].forEach(row => {
+          [...taggedKampenData, ...taggedTownhomeData, ...taggedFlcondoData].forEach(row => {
             const siteName = row.site_name;
             if (!siteMap.has(siteName) || new Date(row.created_at) > new Date(siteMap.get(siteName).created_at)) {
               siteMap.set(siteName, row);
@@ -1362,30 +1375,36 @@
                         'Flags Prior Week',
                         'Heat Rate @ Design (°F/hr)',
                         'House Air Leakage'
-                      ].map(columnName => (
-                        <th 
-                          key={columnName}
-                          style={{
-                            ...headerStyle,
-                            background: (columnName === 'Heat Rate @ Design (°F/hr)' || columnName === 'House Air Leakage') 
-                              ? 'rgba(34, 211, 238, 0.1)' 
-                              : 'transparent',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            transition: 'all 0.2s'
-                          }}
-                          onClick={() => handleSort(columnName)}
-                          onMouseEnter={(e) => e.target.style.color = '#0ea5e9'}
-                          onMouseLeave={(e) => e.target.style.color = '#22d3ee'}
-                        >
-                          {columnName}
-                          {sortColumn === columnName && (
-                            <span style={{ marginLeft: '4px', fontSize: '0.8rem' }}>
-                              {sortDirection === 'asc' ? '▲' : '▼'}
-                            </span>
-                          )}
-                        </th>
-                      ))}
+                      ].map(columnName => {
+                        // Center numeric columns except Indoor Temp (has indicator dot)
+                        const shouldCenter = !['Most Recent Data', 'Site', 'Type', 'Indoor Temp (°F)'].includes(columnName);
+                        
+                        return (
+                          <th 
+                            key={columnName}
+                            style={{
+                              ...headerStyle,
+                              textAlign: shouldCenter ? 'center' : 'left',
+                              background: (columnName === 'Heat Rate @ Design (°F/hr)' || columnName === 'House Air Leakage') 
+                                ? 'rgba(34, 211, 238, 0.1)' 
+                                : 'transparent',
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={() => handleSort(columnName)}
+                            onMouseEnter={(e) => e.target.style.color = '#0ea5e9'}
+                            onMouseLeave={(e) => e.target.style.color = '#22d3ee'}
+                          >
+                            {columnName}
+                            {sortColumn === columnName && (
+                              <span style={{ marginLeft: '4px', fontSize: '0.8rem' }}>
+                                {sortDirection === 'asc' ? '▲' : '▼'}
+                              </span>
+                            )}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
@@ -1403,7 +1422,15 @@
                       getSortedData(data).map((row, idx) => {
                         const siteName = row.site_name || 'Unknown';
                         const config = SITE_CONFIG[siteName] || { type: 'N/A', systemKBtuh: 0 };
-                        const rhFlagColor = getRHFlagColor(row.uniplus2_humidity);
+                        
+                        // Get correct column prefix based on site
+                        const prefix = siteName === 'Kampen' ? 'kampen' : 'uniplus2';
+                        const temp_f = row[`${prefix}_temp_f`];
+                        const humidity = row[`${prefix}_humidity`];
+                        const digital_input1 = row[`${prefix}_digital_input1`];
+                        const digital_input2 = row[`${prefix}_digital_input2`];
+                        
+                        const rhFlagColor = getRHFlagColor(humidity);
                         
                         return (
                           <tr 
@@ -1426,7 +1453,7 @@
                             }) : 'N/A'}</td>
                             <td style={cellStyle}>{siteName}</td>
                             <td style={cellStyle}>{config.type}</td>
-                            <td style={cellStyle}>{Math.round(config.systemKBtuh)}</td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{Math.round(config.systemKBtuh)}</td>
                             <td 
                               className="clickable-cell"
                               style={cellStyle}
@@ -1437,53 +1464,55 @@
                                 width: '8px',
                                 height: '8px',
                                 borderRadius: '50%',
-                                background: row.uniplus2_digital_input1 === 1 ? '#ef4444' : 
-                                           row.uniplus2_digital_input2 === 1 ? '#3b82f6' : '#ef4444',
+                                background: digital_input1 === 1 ? '#ef4444' : 
+                                           digital_input2 === 1 ? '#3b82f6' : '#ef4444',
                                 marginRight: '6px',
-                                animation: (row.uniplus2_digital_input1 === 1 || row.uniplus2_digital_input2 === 1) ? 'flash-dot 1.5s infinite' : 'none',
-                                opacity: (row.uniplus2_digital_input1 === 1 || row.uniplus2_digital_input2 === 1) ? 1 : 0,
-                                boxShadow: row.uniplus2_digital_input1 === 1 ? '0 0 4px rgba(239, 68, 68, 0.6)' :
-                                          row.uniplus2_digital_input2 === 1 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
+                                animation: (digital_input1 === 1 || digital_input2 === 1) ? 'flash-dot 1.5s infinite' : 'none',
+                                opacity: (digital_input1 === 1 || digital_input2 === 1) ? 1 : 0,
+                                boxShadow: digital_input1 === 1 ? '0 0 4px rgba(239, 68, 68, 0.6)' :
+                                          digital_input2 === 1 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
                                 verticalAlign: 'middle'
                               }} />
-                              {row.uniplus2_temp_f?.toFixed(1) || 'N/A'}
+                              {temp_f?.toFixed(1) || 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
                               style={{
                                 ...cellStyle,
+                                textAlign: 'right',
+                                paddingRight: '1rem',
                                 background: rhFlagColor,
                                 fontWeight: rhFlagColor !== 'transparent' ? 600 : 400
                               }}
                               onClick={() => handleCellClick('Indoor RH', siteName)}
                             >
-                              {row.uniplus2_humidity?.toFixed(1) || 'N/A'}
+                              {humidity?.toFixed(1) || 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
-                              style={cellStyle}
+                              style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
                               onClick={() => handleCellClick('Outdoor Temp', siteName)}
                             >
                               {row.outdoor_temp_f?.toFixed(1) || 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
-                              style={cellStyle}
+                              style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
                               onClick={() => handleCellClick('Run Hours', siteName)}
                             >
                               {row.heat_hrs?.toFixed(1) || 'N/A'}
                             </td>
-                            <td style={cellStyle}>{row.heat_cycles ?? 0}</td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{row.heat_cycles ?? 0}</td>
                             <td 
                               className="clickable-cell"
-                              style={cellStyle}
+                              style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
                               onClick={() => handleCellClick('Heat Cycle', siteName)}
                             >
                               {row.avg_heat_cycle?.toFixed(1) || 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
-                              style={cellStyle}
+                              style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
                               onClick={() => handleCellClick('Current Heat Rate', siteName)}
                             >
                               {(() => {
@@ -1494,11 +1523,13 @@
                                 return 'N/A';
                               })()}
                             </td>
-                            <td style={cellStyle}>{row.heat_flag_counter ?? 0}</td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{row.heat_flag_counter ?? 0}</td>
                             <td 
                               className="clickable-cell"
                               style={{
                                 ...cellStyle,
+                                textAlign: 'right',
+                                paddingRight: '1rem',
                                 background: 'rgba(34, 211, 238, 0.1)'
                               }}
                               onClick={() => handleCellClick('Heat Rate @ Design', siteName)}
@@ -1509,6 +1540,8 @@
                               className="clickable-cell"
                               style={{
                                 ...cellStyle,
+                                textAlign: 'right',
+                                paddingRight: '1rem',
                                 background: 'rgba(34, 211, 238, 0.1)'
                               }}
                               onClick={() => handleCellClick('House Air Leakage', siteName)}
