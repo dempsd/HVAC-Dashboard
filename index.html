@@ -1039,7 +1039,7 @@
       const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-          const [kampenRes, townhomeRes, flcondoRes] = await Promise.all([
+          const [kampenRes, townhomeRes, flcondoRes, kampenExcessRes] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/kampen_readings?select=*&order=created_at.desc`, {
               headers: {
                 'apikey': SUPABASE_KEY,
@@ -1057,14 +1057,32 @@
                 'apikey': SUPABASE_KEY,
                 'Authorization': `Bearer ${SUPABASE_KEY}`
               }
+            }),
+            // Fetch most recent excess capacity value (may be from older row)
+            fetch(`${SUPABASE_URL}/rest/v1/kampen_readings?select=excess_capacity_percent&not.excess_capacity_percent=is.null&order=created_at.desc&limit=1`, {
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+              }
             })
           ]);
 
           const kampenData = await kampenRes.json();
           const townhomeData = await townhomeRes.json();
           const flcondoData = await flcondoRes.json();
+          const kampenExcessData = await kampenExcessRes.json();
 
-          const taggedKampenData = kampenData.map(row => ({ ...row, site_name: 'Kampen' }));
+          // Get the most recent excess capacity value
+          const latestExcessCapacity = kampenExcessData && kampenExcessData.length > 0 
+            ? kampenExcessData[0].excess_capacity_percent 
+            : null;
+
+          const taggedKampenData = kampenData.map(row => ({ 
+            ...row, 
+            site_name: 'Kampen',
+            // Override excess_capacity_percent with the most recent value
+            excess_capacity_percent: latestExcessCapacity
+          }));
           const taggedTownhomeData = townhomeData.map(row => ({ ...row, site_name: 'Townhome' }));
           const taggedFlcondoData = flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }));
 
