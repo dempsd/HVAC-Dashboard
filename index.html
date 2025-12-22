@@ -965,7 +965,8 @@
         'Current Heat Rate (°F/hr)': 'heat_iatr_meas_daily',
         'Flags Prior Week': 'heat_flag_counter',
         'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_daily',
-        'House Air Leakage': 'leakage_slope_normalized'
+        'House Air Leakage': 'leakage_slope_normalized',
+        'Excess Capacity (%)': 'excess_capacity_percent'
       };
 
       // Handle column header click for sorting
@@ -1374,7 +1375,8 @@
                         'Current Heat Rate (°F/hr)',
                         'Flags Prior Week',
                         'Heat Rate @ Design (°F/hr)',
-                        'House Air Leakage'
+                        'House Air Leakage',
+                        'Excess Capacity (%)'
                       ].map(columnName => {
                         // Center numeric columns except Indoor Temp (has indicator dot)
                         const shouldCenter = !['Most Recent Data', 'Site', 'Type', 'Indoor Temp (°F)'].includes(columnName);
@@ -1410,7 +1412,7 @@
                   <tbody>
                     {loading && data.length === 0 ? (
                       <tr>
-                        <td colSpan="14" style={{
+                        <td colSpan="15" style={{
                           textAlign: 'center',
                           padding: '3rem',
                           color: '#94a3b8'
@@ -1547,6 +1549,15 @@
                               onClick={() => handleCellClick('House Air Leakage', siteName)}
                             >
                               {row.leakage_slope_normalized?.toFixed(2) || 'N/A'}
+                            </td>
+                            <td 
+                              style={{
+                                ...cellStyle,
+                                textAlign: 'right',
+                                paddingRight: '1rem'
+                              }}
+                            >
+                              {row.excess_capacity_percent?.toFixed(1) || 'N/A'}
                             </td>
                           </tr>
                         );
