@@ -337,16 +337,12 @@
       const columnName = METRIC_COLUMN_MAP[metric];
       const unit = METRIC_UNITS[metric];
       
-      // Adjust column name for site-specific prefixes
+      // Adjust column name for Kampen site (uses kampen_* instead of uniplus2_*)
       let actualColumnName = columnName;
-      if (columnName === 'uniplus2_temp_f' || columnName === 'uniplus2_humidity') {
-        if (site === 'Kampen') {
-          actualColumnName = columnName.replace('uniplus2_', 'kampen_');
-        } else if (site === 'Townhome') {
-          actualColumnName = columnName.replace('uniplus2_', 'townhome_');
-        }
-        // FLcondo keeps uniplus2_ prefix
+      if (site === 'Kampen' && (columnName === 'uniplus2_temp_f' || columnName === 'uniplus2_humidity')) {
+        actualColumnName = columnName.replace('uniplus2_', 'kampen_');
       }
+      // Townhome and FLcondo use uniplus2_* columns
       
       const days = timeRange === '24h' ? 1 : timeRange === '3d' ? 3 : 
                    timeRange === '7d' ? 7 : 30;
@@ -1007,11 +1003,9 @@
             aVal = configA.systemKBtuh || 0;
             bVal = configB.systemKBtuh || 0;
           } else if (columnKey === 'uniplus2_temp_f' || columnKey === 'uniplus2_humidity') {
-            // Handle site-specific columns (Kampen uses kampen_*, Townhome uses townhome_*, FLcondo uses uniplus2_*)
-            const prefixA = a.site_name === 'Kampen' ? 'kampen' : 
-                           a.site_name === 'Townhome' ? 'townhome' : 'uniplus2';
-            const prefixB = b.site_name === 'Kampen' ? 'kampen' : 
-                           b.site_name === 'Townhome' ? 'townhome' : 'uniplus2';
+            // Handle site-specific columns (Kampen uses kampen_*, others use uniplus2_*)
+            const prefixA = a.site_name === 'Kampen' ? 'kampen' : 'uniplus2';
+            const prefixB = b.site_name === 'Kampen' ? 'kampen' : 'uniplus2';
             const suffix = columnKey.replace('uniplus2_', '');
             aVal = a[`${prefixA}_${suffix}`];
             bVal = b[`${prefixB}_${suffix}`];
@@ -1470,8 +1464,8 @@
                         const config = SITE_CONFIG[siteName] || { type: 'N/A', systemKBtuh: 0 };
                         
                         // Get correct column prefix based on site
-                        const prefix = siteName === 'Kampen' ? 'kampen' : 
-                                      siteName === 'Townhome' ? 'townhome' : 'uniplus2';
+                        // Kampen uses kampen_*, Townhome and FLcondo use uniplus2_*
+                        const prefix = siteName === 'Kampen' ? 'kampen' : 'uniplus2';
                         const temp_f = row[`${prefix}_temp_f`];
                         const humidity = row[`${prefix}_humidity`];
                         const digital_input1 = row[`${prefix}_digital_input1`];
