@@ -1406,7 +1406,7 @@
                             style={{
                               ...headerStyle,
                               textAlign: shouldCenter ? 'center' : 'left',
-                              background: (columnName === 'Heat Rate @ Design (°F/hr)' || columnName === 'House Air Leakage') 
+                              background: (columnName === 'Heat Rate @ Design (°F/hr)' || columnName === 'House Air Leakage' || columnName === 'Excess Capacity (%)') 
                                 ? 'rgba(34, 211, 238, 0.1)' 
                                 : 'transparent',
                               cursor: 'pointer',
@@ -1573,7 +1573,8 @@
                               style={{
                                 ...cellStyle,
                                 textAlign: 'right',
-                                paddingRight: '1rem'
+                                paddingRight: '1rem',
+                                background: 'rgba(34, 211, 238, 0.1)'
                               }}
                             >
                               {row.excess_capacity_percent?.toFixed(1) || 'N/A'}
