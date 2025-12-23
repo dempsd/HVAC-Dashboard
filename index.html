@@ -337,10 +337,15 @@
       const columnName = METRIC_COLUMN_MAP[metric];
       const unit = METRIC_UNITS[metric];
       
-      // Adjust column name for Kampen site (uses kampen_* instead of uniplus2_*)
+      // Adjust column name for site-specific prefixes
       let actualColumnName = columnName;
-      if (site === 'Kampen' && (columnName === 'uniplus2_temp_f' || columnName === 'uniplus2_humidity')) {
-        actualColumnName = columnName.replace('uniplus2_', 'kampen_');
+      if (columnName === 'uniplus2_temp_f' || columnName === 'uniplus2_humidity') {
+        if (site === 'Kampen') {
+          actualColumnName = columnName.replace('uniplus2_', 'kampen_');
+        } else if (site === 'Townhome') {
+          actualColumnName = columnName.replace('uniplus2_', 'townhome_');
+        }
+        // FLcondo keeps uniplus2_ prefix
       }
       
       const days = timeRange === '24h' ? 1 : timeRange === '3d' ? 3 : 
@@ -1002,9 +1007,11 @@
             aVal = configA.systemKBtuh || 0;
             bVal = configB.systemKBtuh || 0;
           } else if (columnKey === 'uniplus2_temp_f' || columnKey === 'uniplus2_humidity') {
-            // Handle site-specific columns (Kampen uses kampen_*, others use uniplus2_*)
-            const prefixA = a.site_name === 'Kampen' ? 'kampen' : 'uniplus2';
-            const prefixB = b.site_name === 'Kampen' ? 'kampen' : 'uniplus2';
+            // Handle site-specific columns (Kampen uses kampen_*, Townhome uses townhome_*, FLcondo uses uniplus2_*)
+            const prefixA = a.site_name === 'Kampen' ? 'kampen' : 
+                           a.site_name === 'Townhome' ? 'townhome' : 'uniplus2';
+            const prefixB = b.site_name === 'Kampen' ? 'kampen' : 
+                           b.site_name === 'Townhome' ? 'townhome' : 'uniplus2';
             const suffix = columnKey.replace('uniplus2_', '');
             aVal = a[`${prefixA}_${suffix}`];
             bVal = b[`${prefixB}_${suffix}`];
@@ -1039,8 +1046,8 @@
       const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-          // Fetch all three sites + Kampen's most recent excess capacity
-          const [kampenRes, townhomeRes, flcondoRes, kampenExcessRes] = await Promise.all([
+          // Fetch all three sites + excess capacity for Kampen and Townhome
+          const [kampenRes, townhomeRes, flcondoRes, kampenExcessRes, townhomeExcessRes] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/kampen_readings?select=*&order=created_at.desc`, {
               headers: {
                 'apikey': SUPABASE_KEY,
@@ -1059,8 +1066,15 @@
                 'Authorization': `Bearer ${SUPABASE_KEY}`
               }
             }),
-            // Fetch most recent non-null excess capacity value
+            // Fetch most recent non-null excess capacity value for Kampen
             fetch(`${SUPABASE_URL}/rest/v1/kampen_readings?select=excess_capacity_percent&excess_capacity_percent=not.is.null&order=created_at.desc&limit=1`, {
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+              }
+            }),
+            // Fetch most recent non-null excess capacity value for Townhome
+            fetch(`${SUPABASE_URL}/rest/v1/townhome_readings?select=excess_capacity_percent&excess_capacity_percent=not.is.null&order=created_at.desc&limit=1`, {
               headers: {
                 'apikey': SUPABASE_KEY,
                 'Authorization': `Bearer ${SUPABASE_KEY}`
@@ -1072,19 +1086,30 @@
           const townhomeData = await townhomeRes.json();
           const flcondoData = await flcondoRes.json();
           const kampenExcessData = await kampenExcessRes.json();
+          const townhomeExcessData = await townhomeExcessRes.json();
 
-          // Extract the most recent excess capacity value
-          const latestExcessCapacity = (kampenExcessData && kampenExcessData.length > 0) 
+          // Extract the most recent excess capacity values
+          const latestKampenExcess = (kampenExcessData && kampenExcessData.length > 0) 
             ? kampenExcessData[0].excess_capacity_percent 
             : null;
+          
+          const latestTownhomeExcess = (townhomeExcessData && townhomeExcessData.length > 0) 
+            ? townhomeExcessData[0].excess_capacity_percent 
+            : null;
 
-          // Apply the latest excess capacity to all Kampen rows for display
+          // Apply the latest excess capacity to Kampen rows for display
           const taggedKampenData = kampenData.map(row => ({ 
             ...row, 
             site_name: 'Kampen',
-            excess_capacity_percent: latestExcessCapacity
+            excess_capacity_percent: latestKampenExcess
           }));
-          const taggedTownhomeData = townhomeData.map(row => ({ ...row, site_name: 'Townhome' }));
+          
+          // Apply the latest excess capacity to Townhome rows for display
+          const taggedTownhomeData = townhomeData.map(row => ({ 
+            ...row, 
+            site_name: 'Townhome',
+            excess_capacity_percent: latestTownhomeExcess
+          }));
           const taggedFlcondoData = flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }));
 
           const siteMap = new Map();
@@ -1445,7 +1470,8 @@
                         const config = SITE_CONFIG[siteName] || { type: 'N/A', systemKBtuh: 0 };
                         
                         // Get correct column prefix based on site
-                        const prefix = siteName === 'Kampen' ? 'kampen' : 'uniplus2';
+                        const prefix = siteName === 'Kampen' ? 'kampen' : 
+                                      siteName === 'Townhome' ? 'townhome' : 'uniplus2';
                         const temp_f = row[`${prefix}_temp_f`];
                         const humidity = row[`${prefix}_humidity`];
                         const digital_input1 = row[`${prefix}_digital_input1`];
