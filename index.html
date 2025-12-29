@@ -1543,7 +1543,9 @@
                             >
                               {row.heat_hrs?.toFixed(1) || 'N/A'}
                             </td>
-                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{row.heat_cycles ?? 0}</td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                              {siteName === 'Kampen' ? ((row.heat_cycles ?? 0) + 2142) : (row.heat_cycles ?? 0)}
+                            </td>
                             <td 
                               className="clickable-cell"
                               style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
