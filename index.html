@@ -950,6 +950,7 @@
       const [showScatterPlot, setShowScatterPlot] = useState(false);
       const [sortColumn, setSortColumn] = useState(null);
       const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+      const [activeTab, setActiveTab] = useState('heating'); // 'heating', 'cooling', or 'site_setup'
 
       // Column mapping for sorting
       const columnMap = {
@@ -1377,6 +1378,65 @@
               </div>
             </div>
 
+            {/* Tab Navigation */}
+            <div style={{
+              display: 'flex',
+              gap: '0.5rem',
+              marginBottom: '2rem',
+              background: 'rgba(30, 41, 59, 0.6)',
+              borderRadius: '12px',
+              padding: '0.5rem',
+              border: '1px solid rgba(34, 211, 238, 0.2)'
+            }}>
+              {[
+                { id: 'heating', label: 'Heating', icon: '🔥' },
+                { id: 'cooling', label: 'Cooling', icon: '❄️' },
+                { id: 'site_setup', label: 'Site Setup', icon: '⚙️' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    flex: 1,
+                    background: activeTab === tab.id 
+                      ? 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)'
+                      : 'transparent',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    color: activeTab === tab.id ? '#0f172a' : '#94a3b8',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.3s',
+                    fontFamily: '"Orbitron", sans-serif'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (activeTab !== tab.id) {
+                      e.target.style.background = 'rgba(34, 211, 238, 0.1)';
+                      e.target.style.color = '#22d3ee';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (activeTab !== tab.id) {
+                      e.target.style.background = 'transparent';
+                      e.target.style.color = '#94a3b8';
+                    }
+                  }}
+                >
+                  <span style={{ fontSize: '1.25rem' }}>{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Heating Tab Content */}
+            {activeTab === 'heating' && (
+              <>
             {/* Data Table */}
             <div style={{
               background: 'rgba(30, 41, 59, 0.6)',
@@ -1660,6 +1720,143 @@
                 </div>
               </div>
             </div>
+              </>
+            )}
+
+            {/* Cooling Tab Content */}
+            {activeTab === 'cooling' && (
+              <div style={{
+                background: 'rgba(30, 41, 59, 0.6)',
+                borderRadius: '16px',
+                padding: '3rem',
+                border: '1px solid rgba(34, 211, 238, 0.2)',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>❄️</div>
+                <h2 style={{
+                  fontFamily: '"Orbitron", sans-serif',
+                  fontSize: '2rem',
+                  color: '#22d3ee',
+                  marginBottom: '1rem'
+                }}>
+                  Cooling Dashboard
+                </h2>
+                <p style={{
+                  fontSize: '1.1rem',
+                  color: '#94a3b8',
+                  maxWidth: '600px',
+                  margin: '0 auto'
+                }}>
+                  Cooling monitoring features coming soon! This tab will display cooling operation data, air conditioning efficiency metrics, and seasonal performance analysis.
+                </p>
+              </div>
+            )}
+
+            {/* Site Setup Tab Content */}
+            {activeTab === 'site_setup' && (
+              <div style={{
+                background: 'rgba(30, 41, 59, 0.6)',
+                borderRadius: '16px',
+                padding: '3rem',
+                border: '1px solid rgba(34, 211, 238, 0.2)'
+              }}>
+                <h2 style={{
+                  fontFamily: '"Orbitron", sans-serif',
+                  fontSize: '2rem',
+                  color: '#22d3ee',
+                  marginBottom: '2rem',
+                  textAlign: 'center'
+                }}>
+                  ⚙️ Site Configuration
+                </h2>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                  gap: '1.5rem',
+                  maxWidth: '1200px',
+                  margin: '0 auto'
+                }}>
+                  {/* Kampen Card */}
+                  <div style={{
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    borderRadius: '12px',
+                    padding: '1.5rem',
+                    border: '1px solid rgba(34, 211, 238, 0.3)'
+                  }}>
+                    <h3 style={{
+                      color: '#22d3ee',
+                      fontSize: '1.25rem',
+                      marginBottom: '1rem',
+                      fontFamily: '"Orbitron", sans-serif'
+                    }}>
+                      Kampen
+                    </h3>
+                    <div style={{ color: '#cbd5e1', lineHeight: '1.8' }}>
+                      <div><strong>Type:</strong> GF2</div>
+                      <div><strong>Capacity:</strong> 78 kBtuh</div>
+                      <div><strong>Location:</strong> Indianapolis, IN</div>
+                      <div><strong>Status:</strong> <span style={{ color: '#22c55e' }}>● Active</span></div>
+                    </div>
+                  </div>
+
+                  {/* Townhome Card */}
+                  <div style={{
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    borderRadius: '12px',
+                    padding: '1.5rem',
+                    border: '1px solid rgba(251, 191, 36, 0.3)'
+                  }}>
+                    <h3 style={{
+                      color: '#fbbf24',
+                      fontSize: '1.25rem',
+                      marginBottom: '1rem',
+                      fontFamily: '"Orbitron", sans-serif'
+                    }}>
+                      Townhome
+                    </h3>
+                    <div style={{ color: '#cbd5e1', lineHeight: '1.8' }}>
+                      <div><strong>Type:</strong> GF1</div>
+                      <div><strong>Capacity:</strong> 101 kBtuh</div>
+                      <div><strong>Location:</strong> Indianapolis, IN</div>
+                      <div><strong>Status:</strong> <span style={{ color: '#22c55e' }}>● Active</span></div>
+                    </div>
+                  </div>
+
+                  {/* FLcondo Card */}
+                  <div style={{
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    borderRadius: '12px',
+                    padding: '1.5rem',
+                    border: '1px solid rgba(168, 85, 247, 0.3)'
+                  }}>
+                    <h3 style={{
+                      color: '#a855f7',
+                      fontSize: '1.25rem',
+                      marginBottom: '1rem',
+                      fontFamily: '"Orbitron", sans-serif'
+                    }}>
+                      FLcondo
+                    </h3>
+                    <div style={{ color: '#cbd5e1', lineHeight: '1.8' }}>
+                      <div><strong>Type:</strong> EH1</div>
+                      <div><strong>Capacity:</strong> 17 kBtuh</div>
+                      <div><strong>Location:</strong> Naples, FL</div>
+                      <div><strong>Status:</strong> <span style={{ color: '#22c55e' }}>● Active</span></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <p style={{
+                  fontSize: '1rem',
+                  color: '#94a3b8',
+                  maxWidth: '800px',
+                  margin: '2rem auto 0',
+                  textAlign: 'center'
+                }}>
+                  Additional site configuration options, sensor calibration settings, and advanced parameters will be available here.
+                </p>
+              </div>
+            )}
           </div>
 
           {selectedChart && (
