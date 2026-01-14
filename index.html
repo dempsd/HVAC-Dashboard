@@ -259,6 +259,12 @@
       'FLcondo': { type: 'EH1', systemKBtuh: 17 }
     };
 
+    const COOL_SITE_CONFIG = {
+      'Kampen': { type: 'GF2', systemKBtuh: 36 },
+      'Townhome': { type: 'GF1', systemKBtuh: 48 },
+      'FLcondo': { type: 'EH1', systemKBtuh: 30 }
+    };
+
     // Map display names to database column names
     const METRIC_COLUMN_MAP = {
       'Indoor Temp': 'uniplus2_temp_f',
@@ -1725,31 +1731,224 @@
 
             {/* Cooling Tab Content */}
             {activeTab === 'cooling' && (
+              <>
+            {/* Cooling Data Table */}
+            <div style={{
+              background: 'rgba(30, 41, 59, 0.6)',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              border: '1px solid rgba(34, 211, 238, 0.2)',
+              backdropFilter: 'blur(10px)'
+            }}>
               <div style={{
-                background: 'rgba(30, 41, 59, 0.6)',
-                borderRadius: '16px',
-                padding: '3rem',
-                border: '1px solid rgba(34, 211, 238, 0.2)',
-                textAlign: 'center'
+                overflowX: 'auto'
               }}>
-                <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>❄️</div>
-                <h2 style={{
-                  fontFamily: '"Orbitron", sans-serif',
-                  fontSize: '2rem',
-                  color: '#22d3ee',
-                  marginBottom: '1rem'
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontSize: '0.875rem',
+                  minWidth: '1400px'
                 }}>
-                  Cooling Dashboard
-                </h2>
-                <p style={{
-                  fontSize: '1.1rem',
-                  color: '#94a3b8',
-                  maxWidth: '600px',
-                  margin: '0 auto'
-                }}>
-                  Cooling monitoring features coming soon! This tab will display cooling operation data, air conditioning efficiency metrics, and seasonal performance analysis.
-                </p>
+                  <thead>
+                    <tr>
+                      {[
+                        'Most Recent Data',
+                        'Site',
+                        'Type',
+                        'Cool Capacity (kBtuh)',
+                        'Indoor Temp (°F)',
+                        'Indoor RH (%)',
+                        'Outdoor Temp (°F)',
+                        'Run Hours',
+                        'ON/OFF Cycles',
+                        'Avg Cool Cycle (min)',
+                        'Current Cool Rate (°F/hr)',
+                        'Flags Prior Week',
+                        'Cool Rate @ Design (°F/hr)',
+                        'House Air Leakage',
+                        'Excess Capacity (%)'
+                      ].map((columnName, idx) => {
+                        const headerStyle = {
+                          padding: '1rem',
+                          fontWeight: 600,
+                          color: '#22d3ee',
+                          borderBottom: '2px solid rgba(34, 211, 238, 0.3)',
+                          position: 'sticky',
+                          top: 0,
+                          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                          zIndex: 10,
+                          whiteSpace: 'nowrap'
+                        };
+                        return (
+                          <th 
+                            key={columnName}
+                            style={{
+                              ...headerStyle,
+                              textAlign: 'left',
+                              background: (columnName === 'Cool Rate @ Design (°F/hr)' || columnName === 'House Air Leakage' || columnName === 'Excess Capacity (%)') 
+                                ? 'rgba(34, 211, 238, 0.1)' 
+                                : 'transparent'
+                            }}
+                          >
+                            {columnName}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading && data.length === 0 ? (
+                      <tr>
+                        <td colSpan="15" style={{
+                          textAlign: 'center',
+                          padding: '3rem',
+                          color: '#94a3b8'
+                        }}>
+                          Loading data...
+                        </td>
+                      </tr>
+                    ) : (
+                      data.map((row, idx) => {
+                        const siteName = row.site_name || 'Unknown';
+                        const config = COOL_SITE_CONFIG[siteName] || { type: 'N/A', systemKBtuh: 0 };
+                        
+                        const prefix = siteName === 'Kampen' ? 'kampen' : 'uniplus2';
+                        const temp_f = row[`${prefix}_temp_f`];
+                        const humidity = row[`${prefix}_humidity`];
+                        
+                        const rhFlagColor = (rh) => {
+                          if (rh > 70 || rh < 20) return '#ef4444';
+                          if (rh > 60 || rh < 30) return '#f59e0b';
+                          return 'transparent';
+                        };
+                        
+                        const cellStyle = {
+                          padding: '0.75rem 1rem',
+                          borderBottom: '1px solid rgba(51, 65, 85, 0.5)',
+                          color: '#e2e8f0'
+                        };
+                        
+                        return (
+                          <tr 
+                            key={idx}
+                            style={{
+                              borderBottom: '1px solid rgba(51, 65, 85, 0.5)',
+                              transition: 'background 0.2s'
+                            }}
+                          >
+                            <td style={cellStyle}>{new Date(row.created_at).toLocaleString()}</td>
+                            <td style={{...cellStyle, fontWeight: 600, color: '#22d3ee'}}>{siteName}</td>
+                            <td style={cellStyle}>{config.type}</td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{config.systemKBtuh}</td>
+                            <td style={cellStyle}>{temp_f?.toFixed(1) || 'N/A'}</td>
+                            <td style={{
+                              ...cellStyle,
+                              background: rhFlagColor(humidity),
+                              fontWeight: rhFlagColor(humidity) !== 'transparent' ? 600 : 400
+                            }}>
+                              {humidity?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td style={cellStyle}>{row.outdoor_temp_f?.toFixed(1) || 'N/A'}</td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                              {row.cool_hrs?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                              {row.cool_cycles ?? 'N/A'}
+                            </td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                              {row.avg_cool_cycle?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                              {row.cool_iatr_meas_daily?.toFixed(2) || 'N/A'}
+                            </td>
+                            <td style={{...cellStyle, textAlign: 'center'}}>
+                              {row.cool_flag_counter ?? 0}
+                            </td>
+                            <td 
+                              style={{
+                                ...cellStyle,
+                                textAlign: 'right',
+                                paddingRight: '1rem',
+                                background: 'rgba(34, 211, 238, 0.1)'
+                              }}
+                            >
+                              {row.cool_iatr_adjust_daily?.toFixed(2) || 'N/A'}
+                            </td>
+                            <td 
+                              style={{
+                                ...cellStyle,
+                                textAlign: 'right',
+                                paddingRight: '1rem',
+                                background: 'rgba(34, 211, 238, 0.1)'
+                              }}
+                            >
+                              {row.leakage_slope_normalized?.toFixed(2) || 'N/A'}
+                            </td>
+                            <td 
+                              style={{
+                                ...cellStyle,
+                                textAlign: 'right',
+                                paddingRight: '1rem',
+                                background: 'rgba(34, 211, 238, 0.1)'
+                              }}
+                            >
+                              {row.cool_excess_capacity_percent?.toFixed(1) || 'N/A'}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
+            </div>
+
+            {/* Cooling Legend */}
+            <div style={{
+              marginTop: '2rem',
+              padding: '1.5rem',
+              background: 'rgba(30, 41, 59, 0.6)',
+              borderRadius: '12px',
+              border: '1px solid rgba(34, 211, 238, 0.2)'
+            }}>
+              <h3 style={{
+                fontFamily: '"Orbitron", sans-serif',
+                fontSize: '1.25rem',
+                color: '#22d3ee',
+                marginBottom: '1rem'
+              }}>
+                ❄️ Cooling Performance Legend
+              </h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '1rem',
+                color: '#cbd5e1'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    background: '#f59e0b',
+                    borderRadius: '4px'
+                  }} />
+                  <span>Yellow: RH &gt; 60% or &lt; 30%</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    background: '#ef4444',
+                    borderRadius: '4px'
+                  }} />
+                  <span>Red: RH &gt; 70% or &lt; 20%</span>
+                </div>
+                <div style={{ color: '#22d3ee' }}>
+                  📊 Cooling metrics track AC performance and efficiency
+                </div>
+              </div>
+            </div>
+              </>
             )}
 
             {/* Site Setup Tab Content */}
