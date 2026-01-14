@@ -436,12 +436,20 @@
       return { data: processedData, unit };
     };
 
-    const ScatterPlotModal = ({ onClose }) => {
+    const ScatterPlotModal = ({ mode = 'heating', onClose }) => {
       const [scatterData, setScatterData] = useState(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
       const chartRef = useRef(null);
       const chartInstance = useRef(null);
+
+      // Determine which column to use based on mode
+      const rateColumn = mode === 'heating' ? 'heat_iatr_meas_daily' : 'cool_iatr_meas_daily';
+      const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature' : 'Cool Rate vs Outdoor Temperature';
+      const subtitle = mode === 'heating' 
+        ? 'Scatter plot showing relationship between outdoor temperature and heating rate'
+        : 'Scatter plot showing relationship between outdoor temperature and cooling rate';
+      const yAxisLabel = mode === 'heating' ? 'Heat Rate (°F/hr)' : 'Cool Rate (°F/hr)';
 
       useEffect(() => {
         const fetchScatterData = async () => {
@@ -451,7 +459,7 @@
             // Fetch data from all three tables
             const [kampenRes, townhomeRes, flcondoRes] = await Promise.all([
               fetch(
-                `${SUPABASE_URL}/rest/v1/kampen_readings?select=heat_iatr_meas_daily,outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/kampen_readings?select=${rateColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -460,7 +468,7 @@
                 }
               ),
               fetch(
-                `${SUPABASE_URL}/rest/v1/townhome_readings?select=heat_iatr_meas_daily,outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/townhome_readings?select=${rateColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -469,7 +477,7 @@
                 }
               ),
               fetch(
-                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=heat_iatr_meas_daily,outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=${rateColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -500,9 +508,9 @@
             // Combine and filter out NULL values
             const allData = [...taggedKampenData, ...taggedTownhomeData, ...taggedFlcondoData];
             const filteredData = allData.filter(row => 
-              row.heat_iatr_meas_daily != null && 
+              row[rateColumn] != null && 
               row.outdoor_temp_f != null &&
-              !isNaN(row.heat_iatr_meas_daily) &&
+              !isNaN(row[rateColumn]) &&
               !isNaN(row.outdoor_temp_f)
             );
 
@@ -511,21 +519,21 @@
               .filter(row => row.site_name === 'Kampen')
               .map(row => ({
                 x: parseFloat(row.outdoor_temp_f),
-                y: parseFloat(row.heat_iatr_meas_daily)
+                y: parseFloat(row[rateColumn])
               }));
 
             const townhomePoints = filteredData
               .filter(row => row.site_name === 'Townhome')
               .map(row => ({
                 x: parseFloat(row.outdoor_temp_f),
-                y: parseFloat(row.heat_iatr_meas_daily)
+                y: parseFloat(row[rateColumn])
               }));
 
             const flcondoPoints = filteredData
               .filter(row => row.site_name === 'FLcondo')
               .map(row => ({
                 x: parseFloat(row.outdoor_temp_f),
-                y: parseFloat(row.heat_iatr_meas_daily)
+                y: parseFloat(row[rateColumn])
               }));
 
             setScatterData({ kampenPoints, townhomePoints, flcondoPoints, totalPoints: filteredData.length });
@@ -538,7 +546,7 @@
         };
 
         fetchScatterData();
-      }, []);
+      }, [mode, rateColumn]);
 
       useEffect(() => {
         if (!scatterData || !chartRef.current || loading) return;
@@ -604,7 +612,7 @@
                 padding: 12,
                 callbacks: {
                   label: (item) => {
-                    return `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F, Heat Rate: ${item.parsed.y.toFixed(2)}°F/hr`;
+                    return `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F, ${mode === 'heating' ? 'Heat' : 'Cool'} Rate: ${item.parsed.y.toFixed(2)}°F/hr`;
                   }
                 }
               }
@@ -630,7 +638,7 @@
               y: {
                 title: {
                   display: true,
-                  text: 'Heat Rate (°F/hr)',
+                  text: yAxisLabel,
                   color: '#22d3ee',
                   font: {
                     size: 14,
@@ -653,7 +661,7 @@
             chartInstance.current.destroy();
           }
         };
-      }, [scatterData, loading]);
+      }, [scatterData, loading, mode, yAxisLabel]);
 
       return (
         <div className="modal-overlay" onClick={onClose}>
@@ -661,10 +669,8 @@
             <button className="close-button" onClick={onClose}>×</button>
 
             <div className="chart-header">
-              <h2 className="chart-title">Heat Rate vs Outdoor Temperature</h2>
-              <p className="chart-subtitle">
-                Scatter plot showing relationship between outdoor temperature and heating rate
-              </p>
+              <h2 className="chart-title">{title}</h2>
+              <p className="chart-subtitle">{subtitle}</p>
             </div>
 
             {loading ? (
@@ -703,7 +709,7 @@
 
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>
-                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot helps identify the relationship between outdoor temperature and heating rate. 
+                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot helps identify the relationship between outdoor temperature and {mode === 'heating' ? 'heating' : 'cooling'} rate. 
                     Points clustered together indicate consistent system performance, while outliers may indicate unusual conditions or system issues.
                   </p>
                 </div>
@@ -961,7 +967,7 @@
       const [isPaused, setIsPaused] = useState(false);
       const [countdown, setCountdown] = useState(180);
       const [selectedChart, setSelectedChart] = useState(null);
-      const [showScatterPlot, setShowScatterPlot] = useState(false);
+      const [showScatterPlot, setShowScatterPlot] = useState(null); // null, 'heating', or 'cooling'
       const [sortColumn, setSortColumn] = useState(null);
       const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
       const [activeTab, setActiveTab] = useState('heating'); // 'heating', 'cooling', or 'site_setup'
@@ -1372,27 +1378,53 @@
                     Refresh Now
                   </button>
                   
-                  <button
-                    onClick={() => setShowScatterPlot(true)}
-                    style={{
-                      background: '#22c55e',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '0.5rem 1rem',
-                      color: '#0f172a',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                  >
-                    📈 Heat Rate vs Outdoor Temp
-                  </button>
+                  {activeTab === 'heating' && (
+                    <button
+                      onClick={() => setShowScatterPlot('heating')}
+                      style={{
+                        background: '#22c55e',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '0.5rem 1rem',
+                        color: '#0f172a',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                    >
+                      📈 Heat Rate vs Outdoor Temp
+                    </button>
+                  )}
+                  
+                  {activeTab === 'cooling' && (
+                    <button
+                      onClick={() => setShowScatterPlot('cooling')}
+                      style={{
+                        background: '#3b82f6',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '0.5rem 1rem',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                    >
+                      📉 Cool Rate vs Outdoor Temp
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -2149,7 +2181,8 @@
 
           {showScatterPlot && (
             <ScatterPlotModal 
-              onClose={() => setShowScatterPlot(false)}
+              mode={showScatterPlot}
+              onClose={() => setShowScatterPlot(null)}
             />
           )}
         </div>
