@@ -1852,9 +1852,9 @@
                               hour: '2-digit', 
                               minute: '2-digit' 
                             }) : 'N/A'}</td>
-                            <td style={{...cellStyle, fontWeight: 600, color: '#22d3ee'}}>{siteName}</td>
+                            <td style={cellStyle}>{siteName}</td>
                             <td style={cellStyle}>{config.type}</td>
-                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{config.systemKBtuh}</td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{Math.round(config.systemKBtuh)}</td>
                             <td style={cellStyle}>{temp_f?.toFixed(1) || 'N/A'}</td>
                             <td style={{
                               ...cellStyle,
@@ -1924,21 +1924,24 @@
               padding: '1.5rem',
               background: 'rgba(30, 41, 59, 0.6)',
               borderRadius: '12px',
-              border: '1px solid rgba(34, 211, 238, 0.2)'
+              border: '1px solid rgba(34, 211, 238, 0.2)',
+              backdropFilter: 'blur(10px)'
             }}>
               <h3 style={{
-                fontFamily: '"Orbitron", sans-serif',
-                fontSize: '1.25rem',
+                fontSize: '1rem',
+                fontWeight: 700,
+                marginBottom: '1rem',
                 color: '#22d3ee',
-                marginBottom: '1rem'
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
               }}>
-                ❄️ Cooling Performance Legend
+                💡 Interactive Dashboard
               </h3>
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gap: '1rem',
-                color: '#cbd5e1'
+                display: 'flex',
+                gap: '2rem',
+                fontSize: '0.875rem',
+                flexWrap: 'wrap'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <div style={{
@@ -1959,7 +1962,7 @@
                   <span>Red: RH &gt; 70% or &lt; 20%</span>
                 </div>
                 <div style={{ color: '#22d3ee' }}>
-                  📊 Cooling metrics track AC performance and efficiency
+                  📊 Click any metric value to view historical trends
                 </div>
               </div>
             </div>
