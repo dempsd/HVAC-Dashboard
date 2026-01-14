@@ -972,15 +972,19 @@
         'Site': 'site_name',
         'Type': 'type',
         'Heat Capacity (kBtuh)': 'systemKBtuh',
+        'Cool Capacity (kBtuh)': 'systemKBtuh',
         'Indoor Temp (°F)': 'uniplus2_temp_f',
         'Indoor RH (%)': 'uniplus2_humidity',
         'Outdoor Temp (°F)': 'outdoor_temp_f',
         'Run Hours': 'heat_hrs',
         'ON/OFF Cycles': 'heat_cycles',
         'Avg Heat Cycle (min)': 'avg_heat_cycle',
+        'Avg Cool Cycle (min)': 'avg_cool_cycle',
         'Current Heat Rate (°F/hr)': 'heat_iatr_meas_daily',
+        'Current Cool Rate (°F/hr)': 'cool_iatr_meas_daily',
         'Flags Prior Week': 'heat_flag_counter',
         'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_daily',
+        'Cool Rate @ Design (°F/hr)': 'cool_iatr_adjust_daily',
         'House Air Leakage': 'leakage_slope_normalized',
         'Excess Capacity (%)': 'excess_capacity_percent'
       };
@@ -1806,10 +1810,21 @@
                               textAlign: shouldCenter ? 'center' : 'left',
                               background: (columnName === 'Cool Rate @ Design (°F/hr)' || columnName === 'House Air Leakage' || columnName === 'Excess Capacity (%)') 
                                 ? 'rgba(34, 211, 238, 0.1)' 
-                                : 'transparent'
+                                : 'transparent',
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              transition: 'all 0.2s'
                             }}
+                            onClick={() => handleSort(columnName)}
+                            onMouseEnter={(e) => e.target.style.color = '#0ea5e9'}
+                            onMouseLeave={(e) => e.target.style.color = '#22d3ee'}
                           >
                             {columnName}
+                            {sortColumn === columnName && (
+                              <span style={{ marginLeft: '4px', fontSize: '0.8rem' }}>
+                                {sortDirection === 'asc' ? '▲' : '▼'}
+                              </span>
+                            )}
                           </th>
                         );
                       })}
