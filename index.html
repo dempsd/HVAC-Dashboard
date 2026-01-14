@@ -1165,6 +1165,7 @@
       };
 
       const getRHFlagColor = (rh) => {
+        if (rh == null || isNaN(rh)) return 'transparent';
         if (rh > 70 || rh < 20) return '#ef4444';
         if (rh > 60 || rh < 30) return '#f59e0b';
         return 'transparent';
@@ -1826,6 +1827,7 @@
                         const humidity = row[`${prefix}_humidity`];
                         
                         const rhFlagColor = (rh) => {
+                          if (rh == null || isNaN(rh)) return 'transparent';
                           if (rh > 70 || rh < 20) return '#ef4444';
                           if (rh > 60 || rh < 30) return '#f59e0b';
                           return 'transparent';
@@ -2007,8 +2009,10 @@
                       Kampen
                     </h3>
                     <div style={{ color: '#cbd5e1', lineHeight: '1.8' }}>
-                      <div><strong>Type:</strong> GF2</div>
-                      <div><strong>Capacity:</strong> 78 kBtuh</div>
+                      <div><strong>Heating Type:</strong> GF2</div>
+                      <div><strong>Heating Capacity:</strong> 78 kBtuh</div>
+                      <div><strong>Cooling Type:</strong> AC1</div>
+                      <div><strong>Cooling Capacity:</strong> 36 kBtuh</div>
                       <div><strong>Location:</strong> Indianapolis, IN</div>
                       <div><strong>Status:</strong> <span style={{ color: '#22c55e' }}>● Active</span></div>
                     </div>
@@ -2030,8 +2034,10 @@
                       Townhome
                     </h3>
                     <div style={{ color: '#cbd5e1', lineHeight: '1.8' }}>
-                      <div><strong>Type:</strong> GF1</div>
-                      <div><strong>Capacity:</strong> 101 kBtuh</div>
+                      <div><strong>Heating Type:</strong> GF1</div>
+                      <div><strong>Heating Capacity:</strong> 101 kBtuh</div>
+                      <div><strong>Cooling Type:</strong> AC1</div>
+                      <div><strong>Cooling Capacity:</strong> 48 kBtuh</div>
                       <div><strong>Location:</strong> Indianapolis, IN</div>
                       <div><strong>Status:</strong> <span style={{ color: '#22c55e' }}>● Active</span></div>
                     </div>
@@ -2053,8 +2059,10 @@
                       FLcondo
                     </h3>
                     <div style={{ color: '#cbd5e1', lineHeight: '1.8' }}>
-                      <div><strong>Type:</strong> EH1</div>
-                      <div><strong>Capacity:</strong> 17 kBtuh</div>
+                      <div><strong>Heating Type:</strong> EH1</div>
+                      <div><strong>Heating Capacity:</strong> 17 kBtuh</div>
+                      <div><strong>Cooling Type:</strong> AC1</div>
+                      <div><strong>Cooling Capacity:</strong> 30 kBtuh</div>
                       <div><strong>Location:</strong> Naples, FL</div>
                       <div><strong>Status:</strong> <span style={{ color: '#22c55e' }}>● Active</span></div>
                     </div>
