@@ -1845,7 +1845,13 @@
                               transition: 'background 0.2s'
                             }}
                           >
-                            <td style={cellStyle}>{new Date(row.created_at).toLocaleString()}</td>
+                            <td style={cellStyle}>{row.created_at ? new Date(row.created_at).toLocaleString('en-US', { 
+                              year: 'numeric', 
+                              month: '2-digit', 
+                              day: '2-digit', 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            }) : 'N/A'}</td>
                             <td style={{...cellStyle, fontWeight: 600, color: '#22d3ee'}}>{siteName}</td>
                             <td style={cellStyle}>{config.type}</td>
                             <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{config.systemKBtuh}</td>
