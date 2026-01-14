@@ -274,7 +274,11 @@
       'Heat Cycle': 'avg_heat_cycle',
       'Current Heat Rate': 'heat_iatr_meas_daily',
       'Heat Rate @ Design': 'heat_iatr_adjust_daily',
-      'House Air Leakage': 'leakage_slope_normalized'
+      'House Air Leakage': 'leakage_slope_normalized',
+      'Cool Run Hours': 'cool_hrs',
+      'Cool Cycle': 'avg_cool_cycle',
+      'Current Cool Rate': 'cool_iatr_meas_daily',
+      'Cool Rate @ Design': 'cool_iatr_adjust_daily'
     };
 
     const METRIC_UNITS = {
@@ -285,7 +289,11 @@
       'Heat Cycle': 'min',
       'Current Heat Rate': '°F/hr',
       'Heat Rate @ Design': '°F/hr',
-      'House Air Leakage': ''
+      'House Air Leakage': '',
+      'Cool Run Hours': 'hrs',
+      'Cool Cycle': 'min',
+      'Current Cool Rate': '°F/hr',
+      'Cool Rate @ Design': '°F/hr'
     };
 
     // Aggregate data to 15-minute intervals
@@ -1856,48 +1864,80 @@
                             <td style={cellStyle}>{siteName}</td>
                             <td style={cellStyle}>{config.type}</td>
                             <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{Math.round(config.systemKBtuh)}</td>
-                            <td style={cellStyle}>{temp_f?.toFixed(1) || 'N/A'}</td>
-                            <td style={{
+                            <td 
+                              className="clickable-cell"
+                              style={cellStyle}
+                              onClick={() => handleCellClick('Indoor Temp', siteName)}
+                            >
+                              {temp_f?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td 
+                              className="clickable-cell"
+                              style={{
                               ...cellStyle,
                               background: rhFlagColor(humidity),
                               fontWeight: rhFlagColor(humidity) !== 'transparent' ? 600 : 400,
                               color: rhFlagColor(humidity) === '#f59e0b' ? '#1e293b' : cellStyle.color
-                            }}>
+                            }}
+                              onClick={() => handleCellClick('Indoor RH', siteName)}
+                            >
                               {humidity?.toFixed(1) || 'N/A'}
                             </td>
-                            <td style={cellStyle}>{row.outdoor_temp_f?.toFixed(1) || 'N/A'}</td>
-                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                            <td 
+                              className="clickable-cell"
+                              style={cellStyle}
+                              onClick={() => handleCellClick('Outdoor Temp', siteName)}
+                            >
+                              {row.outdoor_temp_f?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td 
+                              className="clickable-cell"
+                              style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
+                              onClick={() => handleCellClick('Cool Run Hours', siteName)}
+                            >
                               {row.cool_hrs?.toFixed(1) || 'N/A'}
                             </td>
                             <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
                               {row.cool_cycles ?? 'N/A'}
                             </td>
-                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                            <td 
+                              className="clickable-cell"
+                              style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
+                              onClick={() => handleCellClick('Cool Cycle', siteName)}
+                            >
                               {row.avg_cool_cycle?.toFixed(1) || 'N/A'}
                             </td>
-                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                            <td 
+                              className="clickable-cell"
+                              style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
+                              onClick={() => handleCellClick('Current Cool Rate', siteName)}
+                            >
                               {row.cool_iatr_meas_daily?.toFixed(2) || 'N/A'}
                             </td>
                             <td style={{...cellStyle, textAlign: 'center'}}>
                               {row.cool_flag_counter ?? 0}
                             </td>
                             <td 
+                              className="clickable-cell"
                               style={{
                                 ...cellStyle,
                                 textAlign: 'right',
                                 paddingRight: '1rem',
                                 background: 'rgba(34, 211, 238, 0.1)'
                               }}
+                              onClick={() => handleCellClick('Cool Rate @ Design', siteName)}
                             >
                               {row.cool_iatr_adjust_daily?.toFixed(2) || 'N/A'}
                             </td>
                             <td 
+                              className="clickable-cell"
                               style={{
                                 ...cellStyle,
                                 textAlign: 'right',
                                 paddingRight: '1rem',
                                 background: 'rgba(34, 211, 238, 0.1)'
                               }}
+                              onClick={() => handleCellClick('House Air Leakage', siteName)}
                             >
                               {row.leakage_slope_normalized?.toFixed(2) || 'N/A'}
                             </td>
