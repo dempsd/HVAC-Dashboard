@@ -260,9 +260,9 @@
     };
 
     const COOL_SITE_CONFIG = {
-      'Kampen': { type: 'GF2', systemKBtuh: 36 },
-      'Townhome': { type: 'GF1', systemKBtuh: 48 },
-      'FLcondo': { type: 'EH1', systemKBtuh: 30 }
+      'Kampen': { type: 'AC1', systemKBtuh: 36 },
+      'Townhome': { type: 'AC1', systemKBtuh: 48 },
+      'FLcondo': { type: 'AC1', systemKBtuh: 30 }
     };
 
     // Map display names to database column names
@@ -1747,10 +1747,13 @@
                   width: '100%',
                   borderCollapse: 'collapse',
                   fontSize: '0.875rem',
-                  minWidth: '1400px'
+                  tableLayout: 'auto'
                 }}>
                   <thead>
-                    <tr>
+                    <tr style={{
+                      background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                      borderBottom: '2px solid #22d3ee'
+                    }}>
                       {[
                         'Most Recent Data',
                         'Site',
@@ -1769,22 +1772,28 @@
                         'Excess Capacity (%)'
                       ].map((columnName, idx) => {
                         const headerStyle = {
-                          padding: '1rem',
-                          fontWeight: 600,
+                          padding: '0.75rem 0.5rem',
+                          textAlign: 'left',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          fontSize: '0.7rem',
+                          letterSpacing: '0.5px',
                           color: '#22d3ee',
-                          borderBottom: '2px solid rgba(34, 211, 238, 0.3)',
-                          position: 'sticky',
-                          top: 0,
-                          background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                          zIndex: 10,
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'normal',
+                          maxWidth: '120px',
+                          verticalAlign: 'top',
+                          lineHeight: '1.2'
                         };
+                        
+                        // Center numeric columns except Indoor Temp
+                        const shouldCenter = !['Most Recent Data', 'Site', 'Type', 'Indoor Temp (°F)'].includes(columnName);
+                        
                         return (
                           <th 
                             key={columnName}
                             style={{
                               ...headerStyle,
-                              textAlign: 'left',
+                              textAlign: shouldCenter ? 'center' : 'left',
                               background: (columnName === 'Cool Rate @ Design (°F/hr)' || columnName === 'House Air Leakage' || columnName === 'Excess Capacity (%)') 
                                 ? 'rgba(34, 211, 238, 0.1)' 
                                 : 'transparent'
