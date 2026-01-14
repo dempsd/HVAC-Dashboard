@@ -1590,7 +1590,8 @@
                                 textAlign: 'right',
                                 paddingRight: '1rem',
                                 background: rhFlagColor,
-                                fontWeight: rhFlagColor !== 'transparent' ? 600 : 400
+                                fontWeight: rhFlagColor !== 'transparent' ? 600 : 400,
+                                color: rhFlagColor === '#f59e0b' ? '#1e293b' : cellStyle.color
                               }}
                               onClick={() => handleCellClick('Indoor RH', siteName)}
                             >
@@ -1859,7 +1860,8 @@
                             <td style={{
                               ...cellStyle,
                               background: rhFlagColor(humidity),
-                              fontWeight: rhFlagColor(humidity) !== 'transparent' ? 600 : 400
+                              fontWeight: rhFlagColor(humidity) !== 'transparent' ? 600 : 400,
+                              color: rhFlagColor(humidity) === '#f59e0b' ? '#1e293b' : cellStyle.color
                             }}>
                               {humidity?.toFixed(1) || 'N/A'}
                             </td>
