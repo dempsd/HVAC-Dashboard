@@ -456,6 +456,8 @@
           setLoading(true);
           setError(null);
           try {
+            console.log(`Fetching scatter plot data for ${mode} mode, column: ${rateColumn}`);
+            
             // Fetch data from all three tables
             const [kampenRes, townhomeRes, flcondoRes] = await Promise.all([
               fetch(
@@ -487,32 +489,61 @@
               )
             ]);
 
-            if (!kampenRes.ok || !townhomeRes.ok || !flcondoRes.ok) {
-              throw new Error('Failed to fetch data from Supabase');
+            console.log('Response status:', { kampen: kampenRes.status, townhome: townhomeRes.status, flcondo: flcondoRes.status });
+
+            // Handle individual response errors with more detail
+            let kampenData = [], townhomeData = [], flcondoData = [];
+            
+            if (kampenRes.ok) {
+              kampenData = await kampenRes.json();
+            } else {
+              console.warn(`Kampen data fetch failed: ${kampenRes.status} ${kampenRes.statusText}`);
+            }
+            
+            if (townhomeRes.ok) {
+              townhomeData = await townhomeRes.json();
+            } else {
+              console.warn(`Townhome data fetch failed: ${townhomeRes.status} ${townhomeRes.statusText}`);
+            }
+            
+            if (flcondoRes.ok) {
+              flcondoData = await flcondoRes.json();
+            } else {
+              console.warn(`FLcondo data fetch failed: ${flcondoRes.status} ${flcondoRes.statusText}`);
             }
 
-            const kampenData = await kampenRes.json();
-            const townhomeData = await townhomeRes.json();
-            const flcondoData = await flcondoRes.json();
-
-            // Check if data is an array
-            if (!Array.isArray(kampenData) || !Array.isArray(townhomeData) || !Array.isArray(flcondoData)) {
-              throw new Error('Unexpected data format from Supabase');
+            // Check if at least one site returned data
+            if (!Array.isArray(kampenData) && !Array.isArray(townhomeData) && !Array.isArray(flcondoData)) {
+              throw new Error('No valid data returned from any site');
             }
 
-            // Tag with site names
-            const taggedKampenData = kampenData.map(row => ({ ...row, site_name: 'Kampen' }));
-            const taggedTownhomeData = townhomeData.map(row => ({ ...row, site_name: 'Townhome' }));
-            const taggedFlcondoData = flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }));
+            console.log('Data received:', { 
+              kampen: kampenData.length, 
+              townhome: townhomeData.length, 
+              flcondo: flcondoData.length 
+            });
+
+            // Tag with site names (only if array)
+            const taggedKampenData = Array.isArray(kampenData) ? kampenData.map(row => ({ ...row, site_name: 'Kampen' })) : [];
+            const taggedTownhomeData = Array.isArray(townhomeData) ? townhomeData.map(row => ({ ...row, site_name: 'Townhome' })) : [];
+            const taggedFlcondoData = Array.isArray(flcondoData) ? flcondoData.map(row => ({ ...row, site_name: 'FLcondo' })) : [];
 
             // Combine and filter out NULL values
             const allData = [...taggedKampenData, ...taggedTownhomeData, ...taggedFlcondoData];
+            console.log(`Total rows before filtering: ${allData.length}`);
+            
             const filteredData = allData.filter(row => 
               row[rateColumn] != null && 
               row.outdoor_temp_f != null &&
               !isNaN(row[rateColumn]) &&
               !isNaN(row.outdoor_temp_f)
             );
+
+            console.log(`Total rows after filtering: ${filteredData.length}`);
+
+            if (filteredData.length === 0) {
+              throw new Error(`No valid ${mode} data found with both rate and outdoor temperature values. This may indicate the ${rateColumn} column is not populated in the database.`);
+            }
 
             // Separate by site for different colors
             const kampenPoints = filteredData
@@ -535,6 +566,12 @@
                 x: parseFloat(row.outdoor_temp_f),
                 y: parseFloat(row[rateColumn])
               }));
+
+            console.log('Points by site:', { 
+              kampen: kampenPoints.length, 
+              townhome: townhomePoints.length, 
+              flcondo: flcondoPoints.length 
+            });
 
             setScatterData({ kampenPoints, townhomePoints, flcondoPoints, totalPoints: filteredData.length });
           } catch (err) {
