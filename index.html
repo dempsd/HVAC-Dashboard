@@ -1897,9 +1897,9 @@
                         'Current Cool Rate (°F/hr)',
                         'Flags Prior Week',
                         'Cool Rate @ Design (°F/hr)',
+                        'CFM / ton',
                         'House Air Leakage',
-                        'Excess Capacity (%)',
-                        'CFM / ton'
+                        'Excess Capacity (%)'
                       ].map((columnName, idx) => {
                         const headerStyle = {
                           padding: '0.75rem 0.5rem',
@@ -2061,6 +2061,16 @@
                               {row.cool_iatr_adjust_daily?.toFixed(2) || 'N/A'}
                             </td>
                             <td 
+                              style={{
+                                ...cellStyle,
+                                textAlign: 'right',
+                                paddingRight: '1rem',
+                                background: 'rgba(34, 211, 238, 0.1)'
+                              }}
+                            >
+                              {row.cool_cfm_weekly?.toFixed(0) || 'N/A'}
+                            </td>
+                            <td 
                               className="clickable-cell"
                               style={{
                                 ...cellStyle,
@@ -2081,16 +2091,6 @@
                               }}
                             >
                               {row.cool_excess_capacity_percent?.toFixed(1) || 'N/A'}
-                            </td>
-                            <td 
-                              style={{
-                                ...cellStyle,
-                                textAlign: 'right',
-                                paddingRight: '1rem',
-                                background: 'rgba(34, 211, 238, 0.1)'
-                              }}
-                            >
-                              {row.cool_cfm_weekly?.toFixed(0) || 'N/A'}
                             </td>
                           </tr>
                         );
