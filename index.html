@@ -1964,6 +1964,7 @@
                         const prefix = siteName === 'Kampen' ? 'kampen' : 'uniplus2';
                         const temp_f = row[`${prefix}_temp_f`];
                         const humidity = row[`${prefix}_humidity`];
+                        const digital_input2 = row[`${prefix}_digital_input2`];
                         
                         const rhFlagColor = (rh) => {
                           if (rh == null || isNaN(rh)) return 'transparent';
@@ -1999,6 +2000,18 @@
                               style={cellStyle}
                               onClick={() => handleCellClick('Indoor Temp', siteName)}
                             >
+                              <span style={{
+                                display: 'inline-block',
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: '#3b82f6',
+                                marginRight: '6px',
+                                animation: digital_input2 === 1 ? 'flash-dot 1.5s infinite' : 'none',
+                                opacity: digital_input2 === 1 ? 1 : 0,
+                                boxShadow: digital_input2 === 1 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
+                                verticalAlign: 'middle'
+                              }} />
                               {temp_f?.toFixed(1) || 'N/A'}
                             </td>
                             <td 
