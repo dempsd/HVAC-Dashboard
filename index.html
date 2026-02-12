@@ -1533,7 +1533,9 @@
                   style={{
                     flex: 1,
                     background: activeTab === tab.id 
-                      ? 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)'
+                      ? (tab.id === 'heating' 
+                          ? 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)'
+                          : 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)')
                       : 'transparent',
                     border: 'none',
                     borderRadius: '8px',
