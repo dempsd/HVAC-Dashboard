@@ -551,44 +551,6 @@
           chartInstance.current.destroy();
         }
 
-        // Calculate linear regression for a set of points
-        const calculateRegression = (points) => {
-          if (points.length < 2) return null;
-          
-          const n = points.length;
-          let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-          
-          points.forEach(point => {
-            sumX += point.x;
-            sumY += point.y;
-            sumXY += point.x * point.y;
-            sumX2 += point.x * point.x;
-          });
-          
-          const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-          const intercept = (sumY - slope * sumX) / n;
-          
-          return { slope, intercept };
-        };
-
-        // Create regression line points
-        const createRegressionLine = (points, regression) => {
-          if (!regression || points.length === 0) return [];
-          
-          const xValues = points.map(p => p.x);
-          const minX = Math.min(...xValues);
-          const maxX = Math.max(...xValues);
-          
-          return [
-            { x: minX, y: regression.slope * minX + regression.intercept },
-            { x: maxX, y: regression.slope * maxX + regression.intercept }
-          ];
-        };
-
-        const kampenRegression = calculateRegression(scatterData.kampenPoints);
-        const townhomeRegression = calculateRegression(scatterData.townhomePoints);
-        const flcondoRegression = calculateRegression(scatterData.flcondoPoints);
-
         const ctx = chartRef.current.getContext('2d');
         
         chartInstance.current = new Chart(ctx, {
@@ -605,17 +567,6 @@
                 pointHoverRadius: 6
               },
               {
-                label: 'Kampen Trend',
-                data: createRegressionLine(scatterData.kampenPoints, kampenRegression),
-                type: 'line',
-                borderColor: '#22d3ee',
-                borderWidth: 2,
-                borderDash: [5, 5],
-                pointRadius: 0,
-                fill: false,
-                tension: 0
-              },
-              {
                 label: 'Townhome',
                 data: scatterData.townhomePoints,
                 backgroundColor: 'rgba(251, 191, 36, 0.6)',
@@ -625,17 +576,6 @@
                 pointHoverRadius: 6
               },
               {
-                label: 'Townhome Trend',
-                data: createRegressionLine(scatterData.townhomePoints, townhomeRegression),
-                type: 'line',
-                borderColor: '#fbbf24',
-                borderWidth: 2,
-                borderDash: [5, 5],
-                pointRadius: 0,
-                fill: false,
-                tension: 0
-              },
-              {
                 label: 'FLcondo',
                 data: scatterData.flcondoPoints,
                 backgroundColor: 'rgba(168, 85, 247, 0.6)',
@@ -643,17 +583,6 @@
                 borderWidth: 1,
                 pointRadius: 4,
                 pointHoverRadius: 6
-              },
-              {
-                label: 'FLcondo Trend',
-                data: createRegressionLine(scatterData.flcondoPoints, flcondoRegression),
-                type: 'line',
-                borderColor: '#a855f7',
-                borderWidth: 2,
-                borderDash: [5, 5],
-                pointRadius: 0,
-                fill: false,
-                tension: 0
               }
             ]
           },
@@ -667,24 +596,7 @@
                   color: '#e2e8f0',
                   font: {
                     size: 14
-                  },
-                  filter: function(item, chart) {
-                    // Hide trend lines from legend, only show sites
-                    return !item.text.includes('Trend');
                   }
-                },
-                onClick: function(e, legendItem, legend) {
-                  const index = legendItem.datasetIndex;
-                  const ci = legend.chart;
-                  
-                  // Toggle both the scatter dataset and its corresponding trend line
-                  const scatterDataset = ci.getDatasetMeta(index);
-                  const trendDataset = ci.getDatasetMeta(index + 1);
-                  
-                  scatterDataset.hidden = scatterDataset.hidden === null ? !ci.data.datasets[index].hidden : !scatterDataset.hidden;
-                  trendDataset.hidden = scatterDataset.hidden;
-                  
-                  ci.update();
                 }
               },
               tooltip: {
@@ -746,7 +658,7 @@
             chartInstance.current.destroy();
           }
         };
-      }, [scatterData, loading, mode]);
+      }, [scatterData, loading]);
 
       return (
         <div className="modal-overlay" onClick={onClose}>
