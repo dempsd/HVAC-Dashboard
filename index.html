@@ -594,6 +594,100 @@
 
         const ctx = chartRef.current.getContext('2d');
         
+        // Linear regression calculation function
+        const calculateLinearRegression = (points) => {
+          if (points.length < 2) return null;
+          
+          const n = points.length;
+          let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+          
+          points.forEach(point => {
+            sumX += point.x;
+            sumY += point.y;
+            sumXY += point.x * point.y;
+            sumX2 += point.x * point.x;
+          });
+          
+          const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+          const intercept = (sumY - slope * sumX) / n;
+          
+          return { slope, intercept };
+        };
+        
+        // Calculate regression lines for each site
+        const kampenRegression = calculateLinearRegression(scatterData.kampenPoints);
+        const townhomeRegression = calculateLinearRegression(scatterData.townhomePoints);
+        const flcondoRegression = calculateLinearRegression(scatterData.flcondoPoints);
+        
+        // Get x-axis range for regression lines
+        const allPoints = [...scatterData.kampenPoints, ...scatterData.townhomePoints, ...scatterData.flcondoPoints];
+        const xValues = allPoints.map(p => p.x);
+        const minX = Math.min(...xValues);
+        const maxX = Math.max(...xValues);
+        
+        // Create regression line datasets
+        const regressionDatasets = [];
+        
+        if (kampenRegression && scatterData.kampenPoints.length > 0) {
+          const kampenXValues = scatterData.kampenPoints.map(p => p.x);
+          const kampenMinX = Math.min(...kampenXValues);
+          const kampenMaxX = Math.max(...kampenXValues);
+          regressionDatasets.push({
+            label: 'Kampen Trend',
+            data: [
+              { x: kampenMinX, y: kampenRegression.slope * kampenMinX + kampenRegression.intercept },
+              { x: kampenMaxX, y: kampenRegression.slope * kampenMaxX + kampenRegression.intercept }
+            ],
+            type: 'line',
+            borderColor: '#22d3ee',
+            borderWidth: 2,
+            borderDash: [8, 4],
+            pointRadius: 0,
+            fill: false,
+            order: 1
+          });
+        }
+        
+        if (townhomeRegression && scatterData.townhomePoints.length > 0) {
+          const townhomeXValues = scatterData.townhomePoints.map(p => p.x);
+          const townhomeMinX = Math.min(...townhomeXValues);
+          const townhomeMaxX = Math.max(...townhomeXValues);
+          regressionDatasets.push({
+            label: 'Townhome Trend',
+            data: [
+              { x: townhomeMinX, y: townhomeRegression.slope * townhomeMinX + townhomeRegression.intercept },
+              { x: townhomeMaxX, y: townhomeRegression.slope * townhomeMaxX + townhomeRegression.intercept }
+            ],
+            type: 'line',
+            borderColor: '#fbbf24',
+            borderWidth: 2,
+            borderDash: [8, 4],
+            pointRadius: 0,
+            fill: false,
+            order: 1
+          });
+        }
+        
+        if (flcondoRegression && scatterData.flcondoPoints.length > 0) {
+          const flcondoXValues = scatterData.flcondoPoints.map(p => p.x);
+          const flcondoMinX = Math.min(...flcondoXValues);
+          const flcondoMaxX = Math.max(...flcondoXValues);
+          regressionDatasets.push({
+            label: 'FLcondo Trend',
+            data: [
+              { x: flcondoMinX, y: flcondoRegression.slope * flcondoMinX + flcondoRegression.intercept },
+              { x: flcondoMaxX, y: flcondoRegression.slope * flcondoMaxX + flcondoRegression.intercept }
+            ],
+            type: 'line',
+            borderColor: '#a855f7',
+            borderWidth: 2,
+            borderDash: [8, 4],
+            pointRadius: 0,
+            fill: false,
+            order: 1
+          });
+        }
+        
         chartInstance.current = new Chart(ctx, {
           type: 'scatter',
           data: {
@@ -605,7 +699,8 @@
                 borderColor: '#22d3ee',
                 borderWidth: 1,
                 pointRadius: 4,
-                pointHoverRadius: 6
+                pointHoverRadius: 6,
+                order: 2
               },
               {
                 label: 'Townhome',
@@ -614,7 +709,8 @@
                 borderColor: '#fbbf24',
                 borderWidth: 1,
                 pointRadius: 4,
-                pointHoverRadius: 6
+                pointHoverRadius: 6,
+                order: 2
               },
               {
                 label: 'FLcondo',
@@ -623,8 +719,10 @@
                 borderColor: '#a855f7',
                 borderWidth: 1,
                 pointRadius: 4,
-                pointHoverRadius: 6
-              }
+                pointHoverRadius: 6,
+                order: 2
+              },
+              ...regressionDatasets
             ]
           },
           options: {
