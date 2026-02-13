@@ -436,32 +436,25 @@
       return { data: processedData, unit };
     };
 
-    const ScatterPlotModal = ({ mode = 'heating', onClose }) => {
+    const ScatterPlotModal = ({ onClose, mode = 'heating' }) => {
       const [scatterData, setScatterData] = useState(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
       const chartRef = useRef(null);
       const chartInstance = useRef(null);
 
-      // Determine which column to use based on mode
-      const rateColumn = mode === 'heating' ? 'heat_iatr_meas_daily' : 'cool_iatr_meas_daily';
-      const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature' : 'Cool Rate vs Outdoor Temperature';
-      const subtitle = mode === 'heating' 
-        ? 'Scatter plot showing relationship between outdoor temperature and heating rate'
-        : 'Scatter plot showing relationship between outdoor temperature and cooling rate';
-      const yAxisLabel = mode === 'heating' ? 'Heat Rate (°F/hr)' : 'Cool Rate (°F/hr)';
-
       useEffect(() => {
         const fetchScatterData = async () => {
           setLoading(true);
           setError(null);
           try {
-            console.log(`Fetching scatter plot data for ${mode} mode, column: ${rateColumn}`);
+            // Determine which column to fetch based on mode
+            const iatrColumn = mode === 'cooling' ? 'cool_iatr_meas_daily' : 'heat_iatr_meas_daily';
             
             // Fetch data from all three tables
             const [kampenRes, townhomeRes, flcondoRes] = await Promise.all([
               fetch(
-                `${SUPABASE_URL}/rest/v1/kampen_readings?select=${rateColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/kampen_readings?select=${iatrColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -470,7 +463,7 @@
                 }
               ),
               fetch(
-                `${SUPABASE_URL}/rest/v1/townhome_readings?select=${rateColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/townhome_readings?select=${iatrColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -479,7 +472,7 @@
                 }
               ),
               fetch(
-                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=${rateColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=${iatrColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -489,89 +482,55 @@
               )
             ]);
 
-            console.log('Response status:', { kampen: kampenRes.status, townhome: townhomeRes.status, flcondo: flcondoRes.status });
-
-            // Handle individual response errors with more detail
-            let kampenData = [], townhomeData = [], flcondoData = [];
-            
-            if (kampenRes.ok) {
-              kampenData = await kampenRes.json();
-            } else {
-              console.warn(`Kampen data fetch failed: ${kampenRes.status} ${kampenRes.statusText}`);
-            }
-            
-            if (townhomeRes.ok) {
-              townhomeData = await townhomeRes.json();
-            } else {
-              console.warn(`Townhome data fetch failed: ${townhomeRes.status} ${townhomeRes.statusText}`);
-            }
-            
-            if (flcondoRes.ok) {
-              flcondoData = await flcondoRes.json();
-            } else {
-              console.warn(`FLcondo data fetch failed: ${flcondoRes.status} ${flcondoRes.statusText}`);
+            if (!kampenRes.ok || !townhomeRes.ok || !flcondoRes.ok) {
+              throw new Error('Failed to fetch data from Supabase');
             }
 
-            // Check if at least one site returned data
-            if (!Array.isArray(kampenData) && !Array.isArray(townhomeData) && !Array.isArray(flcondoData)) {
-              throw new Error('No valid data returned from any site');
+            const kampenData = await kampenRes.json();
+            const townhomeData = await townhomeRes.json();
+            const flcondoData = await flcondoRes.json();
+
+            // Check if data is an array
+            if (!Array.isArray(kampenData) || !Array.isArray(townhomeData) || !Array.isArray(flcondoData)) {
+              throw new Error('Unexpected data format from Supabase');
             }
 
-            console.log('Data received:', { 
-              kampen: kampenData.length, 
-              townhome: townhomeData.length, 
-              flcondo: flcondoData.length 
-            });
+            // Tag with site names
+            const taggedKampenData = kampenData.map(row => ({ ...row, site_name: 'Kampen' }));
+            const taggedTownhomeData = townhomeData.map(row => ({ ...row, site_name: 'Townhome' }));
+            const taggedFlcondoData = flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }));
 
-            // Tag with site names (only if array)
-            const taggedKampenData = Array.isArray(kampenData) ? kampenData.map(row => ({ ...row, site_name: 'Kampen' })) : [];
-            const taggedTownhomeData = Array.isArray(townhomeData) ? townhomeData.map(row => ({ ...row, site_name: 'Townhome' })) : [];
-            const taggedFlcondoData = Array.isArray(flcondoData) ? flcondoData.map(row => ({ ...row, site_name: 'FLcondo' })) : [];
-
-            // Combine and filter out NULL values
+            // Combine and filter out NULL values - use correct column based on mode
+            const iatrColumn = mode === 'cooling' ? 'cool_iatr_meas_daily' : 'heat_iatr_meas_daily';
             const allData = [...taggedKampenData, ...taggedTownhomeData, ...taggedFlcondoData];
-            console.log(`Total rows before filtering: ${allData.length}`);
-            
             const filteredData = allData.filter(row => 
-              row[rateColumn] != null && 
+              row[iatrColumn] != null && 
               row.outdoor_temp_f != null &&
-              !isNaN(row[rateColumn]) &&
+              !isNaN(row[iatrColumn]) &&
               !isNaN(row.outdoor_temp_f)
             );
-
-            console.log(`Total rows after filtering: ${filteredData.length}`);
-
-            if (filteredData.length === 0) {
-              throw new Error(`No valid ${mode} data found with both rate and outdoor temperature values. This may indicate the ${rateColumn} column is not populated in the database.`);
-            }
 
             // Separate by site for different colors
             const kampenPoints = filteredData
               .filter(row => row.site_name === 'Kampen')
               .map(row => ({
                 x: parseFloat(row.outdoor_temp_f),
-                y: parseFloat(row[rateColumn])
+                y: parseFloat(row[iatrColumn])
               }));
 
             const townhomePoints = filteredData
               .filter(row => row.site_name === 'Townhome')
               .map(row => ({
                 x: parseFloat(row.outdoor_temp_f),
-                y: parseFloat(row[rateColumn])
+                y: parseFloat(row[iatrColumn])
               }));
 
             const flcondoPoints = filteredData
               .filter(row => row.site_name === 'FLcondo')
               .map(row => ({
                 x: parseFloat(row.outdoor_temp_f),
-                y: parseFloat(row[rateColumn])
+                y: parseFloat(row[iatrColumn])
               }));
-
-            console.log('Points by site:', { 
-              kampen: kampenPoints.length, 
-              townhome: townhomePoints.length, 
-              flcondo: flcondoPoints.length 
-            });
 
             setScatterData({ kampenPoints, townhomePoints, flcondoPoints, totalPoints: filteredData.length });
           } catch (err) {
@@ -583,7 +542,7 @@
         };
 
         fetchScatterData();
-      }, [mode, rateColumn]);
+      }, []);
 
       useEffect(() => {
         if (!scatterData || !chartRef.current || loading) return;
@@ -649,7 +608,8 @@
                 padding: 12,
                 callbacks: {
                   label: (item) => {
-                    return `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F, ${mode === 'heating' ? 'Heat' : 'Cool'} Rate: ${item.parsed.y.toFixed(2)}°F/hr`;
+                    const rateType = mode === 'cooling' ? 'Cool Rate' : 'Heat Rate';
+                    return `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F, ${rateType}: ${item.parsed.y.toFixed(2)}°F/hr`;
                   }
                 }
               }
@@ -675,7 +635,7 @@
               y: {
                 title: {
                   display: true,
-                  text: yAxisLabel,
+                  text: mode === 'cooling' ? 'Cool Rate (°F/hr)' : 'Heat Rate (°F/hr)',
                   color: '#22d3ee',
                   font: {
                     size: 14,
@@ -698,7 +658,7 @@
             chartInstance.current.destroy();
           }
         };
-      }, [scatterData, loading, mode, yAxisLabel]);
+      }, [scatterData, loading]);
 
       return (
         <div className="modal-overlay" onClick={onClose}>
@@ -706,8 +666,12 @@
             <button className="close-button" onClick={onClose}>×</button>
 
             <div className="chart-header">
-              <h2 className="chart-title">{title}</h2>
-              <p className="chart-subtitle">{subtitle}</p>
+              <h2 className="chart-title">
+                {mode === 'cooling' ? 'Cool Rate vs Outdoor Temperature' : 'Heat Rate vs Outdoor Temperature'}
+              </h2>
+              <p className="chart-subtitle">
+                Scatter plot showing relationship between outdoor temperature and {mode === 'cooling' ? 'cooling' : 'heating'} rate
+              </p>
             </div>
 
             {loading ? (
@@ -746,7 +710,7 @@
 
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>
-                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot helps identify the relationship between outdoor temperature and {mode === 'heating' ? 'heating' : 'cooling'} rate. 
+                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot helps identify the relationship between outdoor temperature and heating rate. 
                     Points clustered together indicate consistent system performance, while outliers may indicate unusual conditions or system issues.
                   </p>
                 </div>
@@ -1302,83 +1266,37 @@
                 pointerEvents: 'none'
               }} />
               
-              {/* Title Section with Icon */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '1.5rem',
-                marginBottom: '1.5rem'
+              <h1 style={{
+                fontFamily: '"Orbitron", sans-serif',
+                fontSize: '3rem',
+                fontWeight: 700,
+                margin: 0,
+                background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                letterSpacing: '1px'
               }}>
-                {/* Home Comfort Analytics Icon */}
-                <div style={{
-                  width: '90px',
-                  height: '90px',
-                  flexShrink: 0
-                }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="90" height="90">
-                    <circle cx="100" cy="100" r="95" fill="#1e3a5f" stroke="#22d3ee" strokeWidth="3"/>
-                    <path d="M 60 90 L 100 55 L 140 90 L 140 135 L 60 135 Z" 
-                          fill="none" stroke="#22d3ee" strokeWidth="3" strokeLinejoin="round"/>
-                    <path d="M 50 90 L 100 45 L 150 90" 
-                          fill="none" stroke="#22d3ee" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                    <g opacity="0.8">
-                      <path d="M 92 85 Q 97 80, 102 85 T 112 85" 
-                            fill="none" stroke="#67e8f9" strokeWidth="2.5" strokeLinecap="round"/>
-                      <path d="M 92 93 Q 97 88, 102 93 T 112 93" 
-                            fill="none" stroke="#67e8f9" strokeWidth="2.5" strokeLinecap="round"/>
-                      <path d="M 92 101 Q 97 96, 102 101 T 112 101" 
-                            fill="none" stroke="#67e8f9" strokeWidth="2.5" strokeLinecap="round"/>
-                    </g>
-                    <g transform="translate(105, 95)">
-                      <rect x="0" y="25" width="6" height="15" fill="#22d3ee" rx="1"/>
-                      <rect x="8" y="18" width="6" height="22" fill="#22d3ee" rx="1"/>
-                      <rect x="16" y="12" width="6" height="28" fill="#22d3ee" rx="1"/>
-                      <rect x="24" y="20" width="6" height="20" fill="#22d3ee" rx="1"/>
-                      <path d="M 3 28 L 11 21 L 19 15 L 27 23" 
-                            fill="none" stroke="#67e8f9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </g>
-                    <g transform="translate(72, 97) scale(1.5)">
-                      <circle cx="3" cy="18" r="4" fill="#22d3ee"/>
-                      <rect x="1" y="5" width="4" height="13" fill="#22d3ee" rx="2"/>
-                      <line x1="3" y1="6" x2="3" y2="16" stroke="#1e3a5f" strokeWidth="1.5" strokeLinecap="round"/>
-                    </g>
-                  </svg>
-                </div>
-                
-                {/* Title and Subtitle */}
-                <div style={{ flex: 1 }}>
-                  <h1 style={{
-                    fontFamily: '"Orbitron", sans-serif',
-                    fontSize: '3.5rem',
-                    fontWeight: 700,
-                    margin: 0,
-                    background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    letterSpacing: '1px'
-                  }}>
-                    HVAC Dashboard
-                  </h1>
-                  <p style={{
-                    fontFamily: '"Orbitron", sans-serif',
-                    fontSize: '1.75rem',
-                    fontWeight: 400,
-                    fontStyle: 'italic',
-                    margin: '0.5rem 0 0 0',
-                    color: '#94a3b8',
-                    letterSpacing: '0.5px',
-                    WebkitTextStroke: '0.75px #22d3ee',
-                    textStroke: '0.75px #22d3ee'
-                  }}>
-                    by Home Comfort Analytics
-                  </p>
-                </div>
-              </div>
+                HVAC Dashboard
+              </h1>
+              <p style={{
+                fontFamily: '"Orbitron", sans-serif',
+                fontSize: '1.5rem',
+                fontWeight: 400,
+                fontStyle: 'italic',
+                margin: '0.5rem 0 0 0',
+                color: '#94a3b8',
+                letterSpacing: '0.5px',
+                WebkitTextStroke: '0.75px #22d3ee',
+                textStroke: '0.75px #22d3ee'
+              }}>
+                by Home Comfort Analytics
+              </p>
               
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '2rem',
+                marginTop: '1.5rem',
                 flexWrap: 'wrap'
               }}>
                 <div style={{
@@ -1461,53 +1379,27 @@
                     Refresh Now
                   </button>
                   
-                  {activeTab === 'heating' && (
-                    <button
-                      onClick={() => setShowScatterPlot('heating')}
-                      style={{
-                        background: '#22c55e',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '0.5rem 1rem',
-                        color: '#0f172a',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                    >
-                      📈 Heat Rate vs Outdoor Temp
-                    </button>
-                  )}
-                  
-                  {activeTab === 'cooling' && (
-                    <button
-                      onClick={() => setShowScatterPlot('cooling')}
-                      style={{
-                        background: '#3b82f6',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '0.5rem 1rem',
-                        color: '#fff',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                    >
-                      📉 Cool Rate vs Outdoor Temp
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setShowScatterPlot('heating')}
+                    style={{
+                      background: '#22c55e',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '0.5rem 1rem',
+                      color: '#0f172a',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    📈 Heat Rate vs Outdoor Temp
+                  </button>
                 </div>
               </div>
             </div>
@@ -1533,9 +1425,7 @@
                   style={{
                     flex: 1,
                     background: activeTab === tab.id 
-                      ? (tab.id === 'heating' 
-                          ? 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)'
-                          : 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)')
+                      ? 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)'
                       : 'transparent',
                     border: 'none',
                     borderRadius: '8px',
@@ -1701,11 +1591,13 @@
                                 width: '8px',
                                 height: '8px',
                                 borderRadius: '50%',
-                                background: '#ef4444',
+                                background: digital_input1 === 1 ? '#ef4444' : 
+                                           digital_input2 === 1 ? '#3b82f6' : '#ef4444',
                                 marginRight: '6px',
-                                animation: digital_input1 === 1 ? 'flash-dot 1.5s infinite' : 'none',
-                                opacity: digital_input1 === 1 ? 1 : 0,
-                                boxShadow: digital_input1 === 1 ? '0 0 4px rgba(239, 68, 68, 0.6)' : 'none',
+                                animation: (digital_input1 === 1 || digital_input2 === 1) ? 'flash-dot 1.5s infinite' : 'none',
+                                opacity: (digital_input1 === 1 || digital_input2 === 1) ? 1 : 0,
+                                boxShadow: digital_input1 === 1 ? '0 0 4px rgba(239, 68, 68, 0.6)' :
+                                          digital_input2 === 1 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
                                 verticalAlign: 'middle'
                               }} />
                               {temp_f?.toFixed(1) || 'N/A'}
@@ -1763,7 +1655,7 @@
                                 return 'N/A';
                               })()}
                             </td>
-                            <td style={{...cellStyle, textAlign: 'center'}}>{row.heat_flag_counter ?? 0}</td>
+                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>{row.heat_flag_counter ?? 0}</td>
                             <td 
                               className="clickable-cell"
                               style={{
@@ -1791,7 +1683,8 @@
                             <td 
                               style={{
                                 ...cellStyle,
-                                textAlign: 'center',
+                                textAlign: 'right',
+                                paddingRight: '1rem',
                                 background: 'rgba(34, 211, 238, 0.1)'
                               }}
                             >
@@ -1860,6 +1753,40 @@
             {/* Cooling Tab Content */}
             {activeTab === 'cooling' && (
               <>
+            {/* Cooling Header Section with Controls */}
+            <div style={{
+              background: 'rgba(30, 41, 59, 0.6)',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              marginBottom: '2rem',
+              border: '1px solid rgba(34, 211, 238, 0.2)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => setShowScatterPlot('cooling')}
+                style={{
+                  background: '#22c55e',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0.5rem 1rem',
+                  color: '#0f172a',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                📈 Cool Rate vs Outdoor Temp
+              </button>
+            </div>
+
             {/* Cooling Data Table */}
             <div style={{
               background: 'rgba(30, 41, 59, 0.6)',
@@ -1896,7 +1823,6 @@
                         'Current Cool Rate (°F/hr)',
                         'Flags Prior Week',
                         'Cool Rate @ Design (°F/hr)',
-                        'CFM / ton',
                         'House Air Leakage',
                         'Excess Capacity (%)'
                       ].map((columnName, idx) => {
@@ -1923,7 +1849,7 @@
                             style={{
                               ...headerStyle,
                               textAlign: shouldCenter ? 'center' : 'left',
-                              background: (columnName === 'Cool Rate @ Design (°F/hr)' || columnName === 'House Air Leakage' || columnName === 'Excess Capacity (%)' || columnName === 'CFM / ton') 
+                              background: (columnName === 'Cool Rate @ Design (°F/hr)' || columnName === 'House Air Leakage' || columnName === 'Excess Capacity (%)') 
                                 ? 'rgba(34, 211, 238, 0.1)' 
                                 : 'transparent',
                               cursor: 'pointer',
@@ -1948,7 +1874,7 @@
                   <tbody>
                     {loading && data.length === 0 ? (
                       <tr>
-                        <td colSpan="16" style={{
+                        <td colSpan="15" style={{
                           textAlign: 'center',
                           padding: '3rem',
                           color: '#94a3b8'
@@ -1964,7 +1890,6 @@
                         const prefix = siteName === 'Kampen' ? 'kampen' : 'uniplus2';
                         const temp_f = row[`${prefix}_temp_f`];
                         const humidity = row[`${prefix}_humidity`];
-                        const digital_input2 = row[`${prefix}_digital_input2`];
                         
                         const rhFlagColor = (rh) => {
                           if (rh == null || isNaN(rh)) return 'transparent';
@@ -2000,18 +1925,6 @@
                               style={cellStyle}
                               onClick={() => handleCellClick('Indoor Temp', siteName)}
                             >
-                              <span style={{
-                                display: 'inline-block',
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                background: '#3b82f6',
-                                marginRight: '6px',
-                                animation: digital_input2 === 1 ? 'flash-dot 1.5s infinite' : 'none',
-                                opacity: digital_input2 === 1 ? 1 : 0,
-                                boxShadow: digital_input2 === 1 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
-                                verticalAlign: 'middle'
-                              }} />
                               {temp_f?.toFixed(1) || 'N/A'}
                             </td>
                             <td 
@@ -2073,16 +1986,6 @@
                               {row.cool_iatr_adjust_daily?.toFixed(2) || 'N/A'}
                             </td>
                             <td 
-                              style={{
-                                ...cellStyle,
-                                textAlign: 'right',
-                                paddingRight: '1rem',
-                                background: 'rgba(34, 211, 238, 0.1)'
-                              }}
-                            >
-                              {row.cool_cfm_weekly?.toFixed(0) || 'N/A'}
-                            </td>
-                            <td 
                               className="clickable-cell"
                               style={{
                                 ...cellStyle,
@@ -2097,7 +2000,8 @@
                             <td 
                               style={{
                                 ...cellStyle,
-                                textAlign: 'center',
+                                textAlign: 'right',
+                                paddingRight: '1rem',
                                 background: 'rgba(34, 211, 238, 0.1)'
                               }}
                             >
