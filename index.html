@@ -627,11 +627,16 @@
         
         // Create regression line datasets
         const regressionDatasets = [];
+        const interceptMarkers = [];
         
         if (kampenRegression && scatterData.kampenPoints.length > 0) {
           const kampenXValues = scatterData.kampenPoints.map(p => p.x);
           const kampenMinX = Math.min(...kampenXValues);
           const kampenMaxX = Math.max(...kampenXValues);
+          
+          // Calculate x-intercept (OAT where IATR = 0)
+          const kampenXIntercept = -kampenRegression.intercept / kampenRegression.slope;
+          
           regressionDatasets.push({
             label: 'Kampen Trend',
             data: [
@@ -646,12 +651,30 @@
             fill: false,
             order: 1
           });
+          
+          // Add x-intercept marker
+          interceptMarkers.push({
+            label: `Kampen IATR=0 @ ${kampenXIntercept.toFixed(1)}°F`,
+            data: [{ x: kampenXIntercept, y: 0 }],
+            backgroundColor: '#22d3ee',
+            borderColor: '#22d3ee',
+            borderWidth: 2,
+            pointRadius: 8,
+            pointStyle: 'triangle',
+            pointRotation: 180,
+            showLine: false,
+            order: 0
+          });
         }
         
         if (townhomeRegression && scatterData.townhomePoints.length > 0) {
           const townhomeXValues = scatterData.townhomePoints.map(p => p.x);
           const townhomeMinX = Math.min(...townhomeXValues);
           const townhomeMaxX = Math.max(...townhomeXValues);
+          
+          // Calculate x-intercept (OAT where IATR = 0)
+          const townhomeXIntercept = -townhomeRegression.intercept / townhomeRegression.slope;
+          
           regressionDatasets.push({
             label: 'Townhome Trend',
             data: [
@@ -666,12 +689,30 @@
             fill: false,
             order: 1
           });
+          
+          // Add x-intercept marker
+          interceptMarkers.push({
+            label: `Townhome IATR=0 @ ${townhomeXIntercept.toFixed(1)}°F`,
+            data: [{ x: townhomeXIntercept, y: 0 }],
+            backgroundColor: '#fbbf24',
+            borderColor: '#fbbf24',
+            borderWidth: 2,
+            pointRadius: 8,
+            pointStyle: 'triangle',
+            pointRotation: 180,
+            showLine: false,
+            order: 0
+          });
         }
         
         if (flcondoRegression && scatterData.flcondoPoints.length > 0) {
           const flcondoXValues = scatterData.flcondoPoints.map(p => p.x);
           const flcondoMinX = Math.min(...flcondoXValues);
           const flcondoMaxX = Math.max(...flcondoXValues);
+          
+          // Calculate x-intercept (OAT where IATR = 0)
+          const flcondoXIntercept = -flcondoRegression.intercept / flcondoRegression.slope;
+          
           regressionDatasets.push({
             label: 'FLcondo Trend',
             data: [
@@ -685,6 +726,20 @@
             pointRadius: 0,
             fill: false,
             order: 1
+          });
+          
+          // Add x-intercept marker
+          interceptMarkers.push({
+            label: `FLcondo IATR=0 @ ${flcondoXIntercept.toFixed(1)}°F`,
+            data: [{ x: flcondoXIntercept, y: 0 }],
+            backgroundColor: '#a855f7',
+            borderColor: '#a855f7',
+            borderWidth: 2,
+            pointRadius: 8,
+            pointStyle: 'triangle',
+            pointRotation: 180,
+            showLine: false,
+            order: 0
           });
         }
         
@@ -722,7 +777,8 @@
                 pointHoverRadius: 6,
                 order: 2
               },
-              ...regressionDatasets
+              ...regressionDatasets,
+              ...interceptMarkers
             ]
           },
           options: {
@@ -747,6 +803,9 @@
                 padding: 12,
                 callbacks: {
                   label: (item) => {
+                    if (item.dataset.label && item.dataset.label.includes('IATR=0')) {
+                      return item.dataset.label;
+                    }
                     return `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F, ${mode === 'heating' ? 'Heat' : 'Cool'} Rate: ${item.parsed.y.toFixed(2)}°F/hr`;
                   }
                 }
