@@ -467,69 +467,57 @@
             
             console.log(`Date range: ${startDate} to ${endDate}`);
             
-            // Fetch data from all three tables for the prior year
-            const [kampenRes, townhomeRes, flcondoRes] = await Promise.all([
-              fetch(
-                `${SUPABASE_URL}/rest/v1/kampen_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
-                {
-                  headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    'Range': '0-49999'
+            // Function to fetch all pages for a site
+            const fetchAllPages = async (table, batchSize = 1000) => {
+              let allData = [];
+              let offset = 0;
+              let hasMore = true;
+              
+              while (hasMore) {
+                const response = await fetch(
+                  `${SUPABASE_URL}/rest/v1/${table}?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
+                  {
+                    headers: {
+                      'apikey': SUPABASE_KEY,
+                      'Authorization': `Bearer ${SUPABASE_KEY}`,
+                      'Prefer': 'count=exact'
+                    }
                   }
+                );
+                
+                if (!response.ok) {
+                  console.warn(`${table} fetch failed: ${response.status}`);
+                  break;
                 }
-              ),
-              fetch(
-                `${SUPABASE_URL}/rest/v1/townhome_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
-                {
-                  headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    'Range': '0-49999'
+                
+                const data = await response.json();
+                
+                if (!Array.isArray(data) || data.length === 0) {
+                  hasMore = false;
+                } else {
+                  allData = allData.concat(data);
+                  offset += batchSize;
+                  
+                  // If we got fewer rows than requested, we've reached the end
+                  if (data.length < batchSize) {
+                    hasMore = false;
                   }
+                  
+                  console.log(`${table}: Fetched ${data.length} rows, total so far: ${allData.length}`);
                 }
-              ),
-              fetch(
-                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
-                {
-                  headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    'Range': '0-49999'
-                  }
-                }
-              )
+              }
+              
+              return allData;
+            };
+            
+            // Fetch data from all three tables with pagination
+            const [kampenData, townhomeData, flcondoData] = await Promise.all([
+              fetchAllPages('kampen_readings'),
+              fetchAllPages('townhome_readings'),
+              fetchAllPages('flcondo_readings')
             ]);
 
-            console.log('Response status:', { kampen: kampenRes.status, townhome: townhomeRes.status, flcondo: flcondoRes.status });
-
-            // Handle individual response errors with more detail
-            let kampenData = [], townhomeData = [], flcondoData = [];
-            
-            if (kampenRes.ok) {
-              kampenData = await kampenRes.json();
-            } else {
-              console.warn(`Kampen data fetch failed: ${kampenRes.status} ${kampenRes.statusText}`);
-            }
-            
-            if (townhomeRes.ok) {
-              townhomeData = await townhomeRes.json();
-            } else {
-              console.warn(`Townhome data fetch failed: ${townhomeRes.status} ${townhomeRes.statusText}`);
-            }
-            
-            if (flcondoRes.ok) {
-              flcondoData = await flcondoRes.json();
-            } else {
-              console.warn(`FLcondo data fetch failed: ${flcondoRes.status} ${flcondoRes.statusText}`);
-            }
-
-            // Check if at least one site returned data
-            if (!Array.isArray(kampenData) && !Array.isArray(townhomeData) && !Array.isArray(flcondoData)) {
-              throw new Error('No valid data returned from any site');
-            }
-
-            console.log('Data received:', { 
+            console.log('Final data received:', { 
               kampen: kampenData.length, 
               townhome: townhomeData.length, 
               flcondo: flcondoData.length 
