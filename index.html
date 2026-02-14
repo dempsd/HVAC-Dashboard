@@ -470,7 +470,7 @@
             // Fetch data from all three tables for the prior year
             const [kampenRes, townhomeRes, flcondoRes] = await Promise.all([
               fetch(
-                `${SUPABASE_URL}/rest/v1/kampen_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
+                `${SUPABASE_URL}/rest/v1/kampen_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc&limit=50000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -479,7 +479,7 @@
                 }
               ),
               fetch(
-                `${SUPABASE_URL}/rest/v1/townhome_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
+                `${SUPABASE_URL}/rest/v1/townhome_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc&limit=50000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -488,7 +488,7 @@
                 }
               ),
               fetch(
-                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
+                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc&limit=50000`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
