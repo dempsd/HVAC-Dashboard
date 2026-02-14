@@ -1425,7 +1425,7 @@
       const getRHFlagColor = (rh) => {
         if (rh == null || isNaN(rh)) return 'transparent';
         if (rh > 70 || rh < 20) return '#ef4444';
-        if (rh > 60 || rh < 30) return '#f59e0b';
+        if (rh > 60 || rh < 30) return '#eab308';
         return 'transparent';
       };
 
@@ -1923,7 +1923,7 @@
                                 paddingRight: '1rem',
                                 background: rhFlagColor,
                                 fontWeight: rhFlagColor !== 'transparent' ? 600 : 400,
-                                color: rhFlagColor === '#f59e0b' ? '#1e293b' : cellStyle.color
+                                color: rhFlagColor === '#eab308' ? '#1e293b' : cellStyle.color
                               }}
                               onClick={() => handleCellClick('Indoor RH', siteName)}
                             >
@@ -2040,7 +2040,7 @@
                   <div style={{
                     width: '20px',
                     height: '20px',
-                    background: '#f59e0b',
+                    background: '#eab308',
                     borderRadius: '4px'
                   }} />
                   <span>Yellow: RH &gt; 60% or &lt; 30%</span>
@@ -2174,7 +2174,7 @@
                         const rhFlagColor = (rh) => {
                           if (rh == null || isNaN(rh)) return 'transparent';
                           if (rh > 70 || rh < 20) return '#ef4444';
-                          if (rh > 60 || rh < 30) return '#f59e0b';
+                          if (rh > 60 || rh < 30) return '#eab308';
                           return 'transparent';
                         };
                         
@@ -2225,7 +2225,7 @@
                               ...cellStyle,
                               background: rhFlagColor(humidity),
                               fontWeight: rhFlagColor(humidity) !== 'transparent' ? 600 : 400,
-                              color: rhFlagColor(humidity) === '#f59e0b' ? '#1e293b' : cellStyle.color
+                              color: rhFlagColor(humidity) === '#eab308' ? '#1e293b' : cellStyle.color
                             }}
                               onClick={() => handleCellClick('Indoor RH', siteName)}
                             >
@@ -2346,7 +2346,7 @@
                   <div style={{
                     width: '20px',
                     height: '20px',
-                    background: '#f59e0b',
+                    background: '#eab308',
                     borderRadius: '4px'
                   }} />
                   <span>Yellow: RH &gt; 60% or &lt; 30%</span>
