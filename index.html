@@ -458,11 +458,16 @@
           try {
             console.log(`Fetching scatter plot data for ${mode} mode, column: ${rateColumn}`);
             
-            // Calculate date range for prior year
+            // Calculate date range for prior year, but not before 1/1/26
             const now = new Date();
             const oneYearAgo = new Date(now);
             oneYearAgo.setFullYear(now.getFullYear() - 1);
-            const startDate = oneYearAgo.toISOString();
+            
+            // Hard cutoff date - don't use data before this
+            const cutoffDate = new Date('2026-01-01T00:00:00Z');
+            
+            // Use the later of the two dates (1 year ago or cutoff date)
+            const startDate = oneYearAgo > cutoffDate ? oneYearAgo.toISOString() : cutoffDate.toISOString();
             const endDate = now.toISOString();
             
             console.log(`Date range: ${startDate} to ${endDate}`);
