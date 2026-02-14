@@ -796,7 +796,104 @@
                 }
               }
             }
-          }
+          },
+          plugins: [{
+            id: 'interceptLabels',
+            afterDatasetsDraw: (chart) => {
+              const ctx = chart.ctx;
+              ctx.save();
+              
+              // Calculate x-intercepts for each site
+              const intercepts = [];
+              
+              if (kampenRegression && scatterData.kampenPoints.length > 0) {
+                const xIntercept = -kampenRegression.intercept / kampenRegression.slope;
+                intercepts.push({ site: 'Kampen', value: xIntercept, color: '#22d3ee' });
+              }
+              
+              if (townhomeRegression && scatterData.townhomePoints.length > 0) {
+                const xIntercept = -townhomeRegression.intercept / townhomeRegression.slope;
+                intercepts.push({ site: 'Townhome', value: xIntercept, color: '#fbbf24' });
+              }
+              
+              if (flcondoRegression && scatterData.flcondoPoints.length > 0) {
+                const xIntercept = -flcondoRegression.intercept / flcondoRegression.slope;
+                intercepts.push({ site: 'FLcondo', value: xIntercept, color: '#a855f7' });
+              }
+              
+              if (intercepts.length === 0) {
+                ctx.restore();
+                return;
+              }
+              
+              // Table dimensions
+              const rowHeight = 24;
+              const padding = 12;
+              const headerHeight = 28;
+              const tableWidth = 180;
+              const tableHeight = headerHeight + (intercepts.length * rowHeight) + padding;
+              
+              // Position based on mode
+              let tableX, tableY;
+              if (mode === 'heating') {
+                // Upper left
+                tableX = chart.chartArea.left + 20;
+                tableY = chart.chartArea.top + 20;
+              } else {
+                // Upper right
+                tableX = chart.chartArea.right - tableWidth - 20;
+                tableY = chart.chartArea.top + 20;
+              }
+              
+              // Draw table background
+              ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
+              ctx.strokeStyle = '#22d3ee';
+              ctx.lineWidth = 2;
+              ctx.fillRect(tableX, tableY, tableWidth, tableHeight);
+              ctx.strokeRect(tableX, tableY, tableWidth, tableHeight);
+              
+              // Draw header
+              ctx.fillStyle = '#22d3ee';
+              ctx.font = 'bold 13px "JetBrains Mono", monospace';
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('IATR=0 Balance Point', tableX + padding, tableY + headerHeight / 2);
+              
+              // Draw separator line
+              ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(tableX, tableY + headerHeight);
+              ctx.lineTo(tableX + tableWidth, tableY + headerHeight);
+              ctx.stroke();
+              
+              // Draw rows
+              ctx.font = '12px "JetBrains Mono", monospace';
+              intercepts.forEach((item, index) => {
+                const rowY = tableY + headerHeight + padding/2 + (index * rowHeight) + rowHeight/2;
+                
+                // Site name
+                ctx.fillStyle = item.color;
+                ctx.textAlign = 'left';
+                ctx.fillText(item.site, tableX + padding, rowY);
+                
+                // Temperature value - show > 150 or < -150 for extreme values
+                let displayValue;
+                if (item.value > 150) {
+                  displayValue = '> 150°F';
+                } else if (item.value < -150) {
+                  displayValue = '< -150°F';
+                } else {
+                  displayValue = `${item.value.toFixed(0)}°F`;
+                }
+                
+                ctx.textAlign = 'right';
+                ctx.fillText(displayValue, tableX + tableWidth - padding, rowY);
+              });
+              
+              ctx.restore();
+            }
+          }]
         });
 
         return () => {
@@ -1546,7 +1643,7 @@
                     onClick={handleManualRefresh}
                     disabled={loading}
                     style={{
-                      background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                      background: '#22c55e',
                       border: 'none',
                       borderRadius: '8px',
                       padding: '0.5rem 1rem',
@@ -1571,7 +1668,7 @@
                     <button
                       onClick={() => setShowScatterPlot('heating')}
                       style={{
-                        background: '#22c55e',
+                        background: 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
                         border: 'none',
                         borderRadius: '8px',
                         padding: '0.5rem 1rem',
@@ -1595,11 +1692,11 @@
                     <button
                       onClick={() => setShowScatterPlot('cooling')}
                       style={{
-                        background: '#3b82f6',
+                        background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
                         border: 'none',
                         borderRadius: '8px',
                         padding: '0.5rem 1rem',
-                        color: '#fff',
+                        color: '#0f172a',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -1641,7 +1738,9 @@
                     background: activeTab === tab.id 
                       ? (tab.id === 'heating' 
                           ? 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)'
-                          : 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)')
+                          : tab.id === 'cooling'
+                          ? 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)'
+                          : '#22c55e')
                       : 'transparent',
                     border: 'none',
                     borderRadius: '8px',
