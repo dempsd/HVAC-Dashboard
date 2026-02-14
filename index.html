@@ -458,10 +458,19 @@
           try {
             console.log(`Fetching scatter plot data for ${mode} mode, column: ${rateColumn}`);
             
-            // Fetch data from all three tables
+            // Calculate date range for prior year
+            const now = new Date();
+            const oneYearAgo = new Date(now);
+            oneYearAgo.setFullYear(now.getFullYear() - 1);
+            const startDate = oneYearAgo.toISOString();
+            const endDate = now.toISOString();
+            
+            console.log(`Date range: ${startDate} to ${endDate}`);
+            
+            // Fetch data from all three tables for the prior year
             const [kampenRes, townhomeRes, flcondoRes] = await Promise.all([
               fetch(
-                `${SUPABASE_URL}/rest/v1/kampen_readings?select=${rateColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/kampen_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -470,7 +479,7 @@
                 }
               ),
               fetch(
-                `${SUPABASE_URL}/rest/v1/townhome_readings?select=${rateColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/townhome_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
@@ -479,7 +488,7 @@
                 }
               ),
               fetch(
-                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=${rateColumn},outdoor_temp_f,created_at&order=created_at.desc&limit=5000`,
+                `${SUPABASE_URL}/rest/v1/flcondo_readings?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
                 {
                   headers: {
                     'apikey': SUPABASE_KEY,
