@@ -464,7 +464,7 @@
             oneYearAgo.setFullYear(now.getFullYear() - 1);
             
             // Hard cutoff date - don't use data before this
-            const cutoffDate = new Date('2026-01-01T00:00:00Z');
+            const cutoffDate = new Date('2026-01-15T00:00:00Z');
             
             // Use the later of the two dates (1 year ago or cutoff date)
             const startDate = oneYearAgo > cutoffDate ? oneYearAgo.toISOString() : cutoffDate.toISOString();
