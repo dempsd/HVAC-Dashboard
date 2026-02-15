@@ -271,14 +271,17 @@
       'Indoor RH': 'uniplus2_humidity',
       'Outdoor Temp': 'outdoor_temp_f',
       'Run Hours': 'heat_hrs',
+      'ON/OFF Cycles': 'heat_cycles',
       'Heat Cycle': 'avg_heat_cycle',
       'Current Heat Rate': 'heat_iatr_meas_daily',
       'Heat Rate @ Design': 'heat_iatr_adjust_daily',
       'House Air Leakage': 'leakage_slope_normalized',
       'Cool Run Hours': 'cool_hrs',
+      'Cool ON/OFF Cycles': 'cool_cycles',
       'Cool Cycle': 'avg_cool_cycle',
       'Current Cool Rate': 'cool_iatr_meas_daily',
-      'Cool Rate @ Design': 'cool_iatr_adjust_daily'
+      'Cool Rate @ Design': 'cool_iatr_adjust_daily',
+      'CFM / ton': 'cool_cfm_weekly'
     };
 
     const METRIC_UNITS = {
@@ -286,14 +289,17 @@
       'Indoor RH': '%',
       'Outdoor Temp': '°F',
       'Run Hours': 'hrs',
+      'ON/OFF Cycles': 'cycles',
       'Heat Cycle': 'min',
       'Current Heat Rate': '°F/hr',
       'Heat Rate @ Design': '°F/hr',
       'House Air Leakage': '',
       'Cool Run Hours': 'hrs',
+      'Cool ON/OFF Cycles': 'cycles',
       'Cool Cycle': 'min',
       'Current Cool Rate': '°F/hr',
-      'Cool Rate @ Design': '°F/hr'
+      'Cool Rate @ Design': '°F/hr',
+      'CFM / ton': 'CFM/ton'
     };
 
     // Aggregate data to 15-minute intervals
@@ -1945,7 +1951,11 @@
                                 ? ((row.heat_hrs ?? 0) + 696).toFixed(1) 
                                 : (row.heat_hrs?.toFixed(1) || 'N/A')}
                             </td>
-                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                            <td 
+                              className="clickable-cell"
+                              style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
+                              onClick={() => handleCellClick('ON/OFF Cycles', siteName)}
+                            >
                               {siteName === 'Kampen' ? ((row.heat_cycles ?? 0) + 2142) : (row.heat_cycles ?? 0)}
                             </td>
                             <td 
@@ -2245,7 +2255,11 @@
                             >
                               {row.cool_hrs?.toFixed(1) || 'N/A'}
                             </td>
-                            <td style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}>
+                            <td 
+                              className="clickable-cell"
+                              style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
+                              onClick={() => handleCellClick('Cool ON/OFF Cycles', siteName)}
+                            >
                               {row.cool_cycles ?? 'N/A'}
                             </td>
                             <td 
@@ -2278,12 +2292,14 @@
                               {row.cool_iatr_adjust_daily?.toFixed(2) || 'N/A'}
                             </td>
                             <td 
+                              className="clickable-cell"
                               style={{
                                 ...cellStyle,
                                 textAlign: 'right',
                                 paddingRight: '1rem',
                                 background: 'rgba(34, 211, 238, 0.1)'
                               }}
+                              onClick={() => handleCellClick('CFM / ton', siteName)}
                             >
                               {row.cool_cfm_weekly?.toFixed(0) || 'N/A'}
                             </td>
