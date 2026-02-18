@@ -274,13 +274,13 @@
       'ON/OFF Cycles': 'heat_cycles',
       'Heat Cycle': 'avg_heat_cycle',
       'Current Heat Rate': 'heat_iatr_meas_daily',
-      'Heat Rate @ Design': 'heat_iatr_adjust_daily',
+      'Heat Rate @ Design': 'heat_iatr_adjust_weekly',
       'House Air Leakage': 'leakage_slope_normalized',
       'Cool Run Hours': 'cool_hrs',
       'Cool ON/OFF Cycles': 'cool_cycles',
       'Cool Cycle': 'avg_cool_cycle',
       'Current Cool Rate': 'cool_iatr_meas_daily',
-      'Cool Rate @ Design': 'cool_iatr_adjust_daily',
+      'Cool Rate @ Design': 'cool_iatr_adjust_weekly',
       'CFM / ton': 'cool_cfm_weekly'
     };
 
@@ -1235,8 +1235,8 @@
         'Current Heat Rate (°F/hr)': 'heat_iatr_meas_daily',
         'Current Cool Rate (°F/hr)': 'cool_iatr_meas_daily',
         'Flags Prior Week': 'heat_flag_counter',
-        'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_daily',
-        'Cool Rate @ Design (°F/hr)': 'cool_iatr_adjust_daily',
+        'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_weekly',
+        'Cool Rate @ Design (°F/hr)': 'cool_iatr_adjust_weekly',
         'House Air Leakage': 'leakage_slope_normalized',
         'Excess Capacity (%)': 'excess_capacity_percent'
       };
@@ -1989,7 +1989,7 @@
                               }}
                               onClick={() => handleCellClick('Heat Rate @ Design', siteName)}
                             >
-                              {row.heat_iatr_adjust_daily?.toFixed(1) || 'N/A'}
+                              {row.heat_iatr_adjust_weekly?.toFixed(1) || 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
@@ -2289,7 +2289,7 @@
                               }}
                               onClick={() => handleCellClick('Cool Rate @ Design', siteName)}
                             >
-                              {row.cool_iatr_adjust_daily?.toFixed(2) || 'N/A'}
+                              {row.cool_iatr_adjust_weekly?.toFixed(2) || 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
