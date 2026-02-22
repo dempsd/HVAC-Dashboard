@@ -449,13 +449,19 @@
       const chartRef = useRef(null);
       const chartInstance = useRef(null);
 
-      // Determine which column to use based on mode
+      // Determine which columns to use based on mode
       const rateColumn = mode === 'heating' ? 'heat_iatr_meas_daily' : 'cool_iatr_meas_daily';
-      const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature' : 'Cool Rate vs Outdoor Temperature';
-      const subtitle = mode === 'heating' 
+      const xColumn = mode === 'cool_cycle' ? 'avg_cool_cycle' : 'outdoor_temp_f';
+      const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature'
+                  : mode === 'cool_cycle' ? 'Cool Rate vs Avg Cool Cycle'
+                  : 'Cool Rate vs Outdoor Temperature';
+      const subtitle = mode === 'heating'
         ? 'Scatter plot showing relationship between outdoor temperature and heating rate'
+        : mode === 'cool_cycle'
+        ? 'Scatter plot showing relationship between average cooling cycle length and cooling rate'
         : 'Scatter plot showing relationship between outdoor temperature and cooling rate';
       const yAxisLabel = mode === 'heating' ? 'Heat Rate (°F/hr)' : 'Cool Rate (°F/hr)';
+      const xAxisLabel = mode === 'cool_cycle' ? 'Avg Cool Cycle (min)' : 'Outdoor Temperature (°F)';
 
       useEffect(() => {
         const fetchScatterData = async () => {
@@ -486,7 +492,7 @@
               
               while (hasMore) {
                 const response = await fetch(
-                  `${SUPABASE_URL}/rest/v1/${table}?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
+                  `${SUPABASE_URL}/rest/v1/${table}?select=${rateColumn},outdoor_temp_f,avg_cool_cycle,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
                   {
                     headers: {
                       'apikey': SUPABASE_KEY,
@@ -545,36 +551,36 @@
             
             const filteredData = allData.filter(row => 
               row[rateColumn] != null && 
-              row.outdoor_temp_f != null &&
+              row[xColumn] != null &&
               !isNaN(row[rateColumn]) &&
-              !isNaN(row.outdoor_temp_f)
+              !isNaN(row[xColumn])
             );
 
             console.log(`Total rows after filtering: ${filteredData.length}`);
 
             if (filteredData.length === 0) {
-              throw new Error(`No valid ${mode} data found with both rate and outdoor temperature values. This may indicate the ${rateColumn} column is not populated in the database.`);
+              throw new Error(`No valid ${mode} data found with both rate and ${xColumn} values. This may indicate the ${rateColumn} column is not populated in the database.`);
             }
 
             // Separate by site for different colors
             const kampenPoints = filteredData
               .filter(row => row.site_name === 'Kampen')
               .map(row => ({
-                x: parseFloat(row.outdoor_temp_f),
+                x: parseFloat(row[xColumn]),
                 y: parseFloat(row[rateColumn])
               }));
 
             const townhomePoints = filteredData
               .filter(row => row.site_name === 'Townhome')
               .map(row => ({
-                x: parseFloat(row.outdoor_temp_f),
+                x: parseFloat(row[xColumn]),
                 y: parseFloat(row[rateColumn])
               }));
 
             const flcondoPoints = filteredData
               .filter(row => row.site_name === 'FLcondo')
               .map(row => ({
-                x: parseFloat(row.outdoor_temp_f),
+                x: parseFloat(row[xColumn]),
                 y: parseFloat(row[rateColumn])
               }));
 
@@ -761,7 +767,10 @@
                 padding: 12,
                 callbacks: {
                   label: (item) => {
-                    return `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F, ${mode === 'heating' ? 'Heat' : 'Cool'} Rate: ${item.parsed.y.toFixed(2)}°F/hr`;
+                    const xLabel = mode === 'cool_cycle' 
+                      ? `Avg Cool Cycle: ${item.parsed.x.toFixed(1)} min`
+                      : `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F`;
+                    return `${xLabel}, ${mode === 'heating' ? 'Heat' : 'Cool'} Rate: ${item.parsed.y.toFixed(2)}°F/hr`;
                   }
                 }
               }
@@ -770,7 +779,7 @@
               x: {
                 title: {
                   display: true,
-                  text: 'Outdoor Temperature (°F)',
+                  text: xAxisLabel,
                   color: '#22d3ee',
                   font: {
                     size: 14,
@@ -806,6 +815,9 @@
           plugins: [{
             id: 'interceptLabels',
             afterDatasetsDraw: (chart) => {
+              // Intercept table not applicable for cool_cycle mode
+              if (mode === 'cool_cycle') return;
+              
               const ctx = chart.ctx;
               ctx.save();
               
@@ -955,8 +967,10 @@
 
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>
-                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot helps identify the relationship between outdoor temperature and {mode === 'heating' ? 'heating' : 'cooling'} rate. 
-                    Points clustered together indicate consistent system performance, while outliers may indicate unusual conditions or system issues.
+                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> {mode === 'cool_cycle'
+                      ? 'This scatter plot shows how cooling rate varies with average cycle length. Longer cycles tend to show lower cooling rates as the system reaches steady-state. Points clustered together indicate consistent system behavior.'
+                      : `This scatter plot helps identify the relationship between outdoor temperature and ${mode === 'heating' ? 'heating' : 'cooling'} rate. Points clustered together indicate consistent system performance, while outliers may indicate unusual conditions or system issues.`
+                    }
                   </p>
                 </div>
               </>
@@ -1696,7 +1710,29 @@
                   
                   {activeTab === 'cooling' && (
                     <button
-                      onClick={() => setShowScatterPlot('cooling')}
+                      onClick={() => setShowScatterPlot('cool_cycle')}
+                      style={{
+                        background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '0.5rem 1rem',
+                        color: '#0f172a',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                    >
+                      🔄 Cool Rate vs Avg Cool Cycle
+                    </button>
+                  )}
+                  
+                  {activeTab === 'cooling' && (
                       style={{
                         background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
                         border: 'none',
@@ -1914,9 +1950,9 @@
                                 borderRadius: '50%',
                                 background: '#ef4444',
                                 marginRight: '6px',
-                                animation: digital_input1 ? 'flash-dot 1.5s infinite' : 'none',
-                                opacity: digital_input1 ? 1 : 0,
-                                boxShadow: digital_input1 ? '0 0 4px rgba(239, 68, 68, 0.6)' : 'none',
+                                animation: digital_input1 === 1 ? 'flash-dot 1.5s infinite' : 'none',
+                                opacity: digital_input1 === 1 ? 1 : 0,
+                                boxShadow: digital_input1 === 1 ? '0 0 4px rgba(239, 68, 68, 0.6)' : 'none',
                                 verticalAlign: 'middle'
                               }} />
                               {temp_f?.toFixed(1) || 'N/A'}
@@ -2222,9 +2258,9 @@
                                 borderRadius: '50%',
                                 background: '#3b82f6',
                                 marginRight: '6px',
-                                animation: digital_input2 ? 'flash-dot 1.5s infinite' : 'none',
-                                opacity: digital_input2 ? 1 : 0,
-                                boxShadow: digital_input2 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
+                                animation: digital_input2 === 1 ? 'flash-dot 1.5s infinite' : 'none',
+                                opacity: digital_input2 === 1 ? 1 : 0,
+                                boxShadow: digital_input2 === 1 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
                                 verticalAlign: 'middle'
                               }} />
                               {temp_f?.toFixed(1) || 'N/A'}
