@@ -1914,9 +1914,9 @@
                                 borderRadius: '50%',
                                 background: '#ef4444',
                                 marginRight: '6px',
-                                animation: digital_input1 === 1 ? 'flash-dot 1.5s infinite' : 'none',
-                                opacity: digital_input1 === 1 ? 1 : 0,
-                                boxShadow: digital_input1 === 1 ? '0 0 4px rgba(239, 68, 68, 0.6)' : 'none',
+                                animation: digital_input1 ? 'flash-dot 1.5s infinite' : 'none',
+                                opacity: digital_input1 ? 1 : 0,
+                                boxShadow: digital_input1 ? '0 0 4px rgba(239, 68, 68, 0.6)' : 'none',
                                 verticalAlign: 'middle'
                               }} />
                               {temp_f?.toFixed(1) || 'N/A'}
@@ -2222,9 +2222,9 @@
                                 borderRadius: '50%',
                                 background: '#3b82f6',
                                 marginRight: '6px',
-                                animation: digital_input2 === 1 ? 'flash-dot 1.5s infinite' : 'none',
-                                opacity: digital_input2 === 1 ? 1 : 0,
-                                boxShadow: digital_input2 === 1 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
+                                animation: digital_input2 ? 'flash-dot 1.5s infinite' : 'none',
+                                opacity: digital_input2 ? 1 : 0,
+                                boxShadow: digital_input2 ? '0 0 4px rgba(59, 130, 246, 0.6)' : 'none',
                                 verticalAlign: 'middle'
                               }} />
                               {temp_f?.toFixed(1) || 'N/A'}
