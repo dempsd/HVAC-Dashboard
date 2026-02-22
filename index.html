@@ -449,19 +449,13 @@
       const chartRef = useRef(null);
       const chartInstance = useRef(null);
 
-      // Determine which columns to use based on mode
+      // Determine which column to use based on mode
       const rateColumn = mode === 'heating' ? 'heat_iatr_meas_daily' : 'cool_iatr_meas_daily';
-      const xColumn = mode === 'cool_cycle' ? 'avg_cool_cycle' : 'outdoor_temp_f';
-      const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature'
-                  : mode === 'cool_cycle' ? 'Cool Rate vs Avg Cool Cycle'
-                  : 'Cool Rate vs Outdoor Temperature';
-      const subtitle = mode === 'heating'
+      const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature' : 'Cool Rate vs Outdoor Temperature';
+      const subtitle = mode === 'heating' 
         ? 'Scatter plot showing relationship between outdoor temperature and heating rate'
-        : mode === 'cool_cycle'
-        ? 'Scatter plot showing relationship between average cooling cycle length and cooling rate'
         : 'Scatter plot showing relationship between outdoor temperature and cooling rate';
       const yAxisLabel = mode === 'heating' ? 'Heat Rate (°F/hr)' : 'Cool Rate (°F/hr)';
-      const xAxisLabel = mode === 'cool_cycle' ? 'Avg Cool Cycle (min)' : 'Outdoor Temperature (°F)';
 
       useEffect(() => {
         const fetchScatterData = async () => {
@@ -492,7 +486,7 @@
               
               while (hasMore) {
                 const response = await fetch(
-                  `${SUPABASE_URL}/rest/v1/${table}?select=${rateColumn},outdoor_temp_f,avg_cool_cycle,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
+                  `${SUPABASE_URL}/rest/v1/${table}?select=${rateColumn},outdoor_temp_f,created_at&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
                   {
                     headers: {
                       'apikey': SUPABASE_KEY,
@@ -551,36 +545,36 @@
             
             const filteredData = allData.filter(row => 
               row[rateColumn] != null && 
-              row[xColumn] != null &&
+              row.outdoor_temp_f != null &&
               !isNaN(row[rateColumn]) &&
-              !isNaN(row[xColumn])
+              !isNaN(row.outdoor_temp_f)
             );
 
             console.log(`Total rows after filtering: ${filteredData.length}`);
 
             if (filteredData.length === 0) {
-              throw new Error(`No valid ${mode} data found with both rate and ${xColumn} values. This may indicate the ${rateColumn} column is not populated in the database.`);
+              throw new Error(`No valid ${mode} data found with both rate and outdoor temperature values. This may indicate the ${rateColumn} column is not populated in the database.`);
             }
 
             // Separate by site for different colors
             const kampenPoints = filteredData
               .filter(row => row.site_name === 'Kampen')
               .map(row => ({
-                x: parseFloat(row[xColumn]),
+                x: parseFloat(row.outdoor_temp_f),
                 y: parseFloat(row[rateColumn])
               }));
 
             const townhomePoints = filteredData
               .filter(row => row.site_name === 'Townhome')
               .map(row => ({
-                x: parseFloat(row[xColumn]),
+                x: parseFloat(row.outdoor_temp_f),
                 y: parseFloat(row[rateColumn])
               }));
 
             const flcondoPoints = filteredData
               .filter(row => row.site_name === 'FLcondo')
               .map(row => ({
-                x: parseFloat(row[xColumn]),
+                x: parseFloat(row.outdoor_temp_f),
                 y: parseFloat(row[rateColumn])
               }));
 
@@ -767,10 +761,7 @@
                 padding: 12,
                 callbacks: {
                   label: (item) => {
-                    const xLabel = mode === 'cool_cycle' 
-                      ? `Avg Cool Cycle: ${item.parsed.x.toFixed(1)} min`
-                      : `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F`;
-                    return `${xLabel}, ${mode === 'heating' ? 'Heat' : 'Cool'} Rate: ${item.parsed.y.toFixed(2)}°F/hr`;
+                    return `Outdoor Temp: ${item.parsed.x.toFixed(1)}°F, ${mode === 'heating' ? 'Heat' : 'Cool'} Rate: ${item.parsed.y.toFixed(2)}°F/hr`;
                   }
                 }
               }
@@ -779,7 +770,7 @@
               x: {
                 title: {
                   display: true,
-                  text: xAxisLabel,
+                  text: 'Outdoor Temperature (°F)',
                   color: '#22d3ee',
                   font: {
                     size: 14,
@@ -815,9 +806,6 @@
           plugins: [{
             id: 'interceptLabels',
             afterDatasetsDraw: (chart) => {
-              // Intercept table not applicable for cool_cycle mode
-              if (mode === 'cool_cycle') return;
-              
               const ctx = chart.ctx;
               ctx.save();
               
@@ -967,10 +955,8 @@
 
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>
-                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> {mode === 'cool_cycle'
-                      ? 'This scatter plot shows how cooling rate varies with average cycle length. Longer cycles tend to show lower cooling rates as the system reaches steady-state. Points clustered together indicate consistent system behavior.'
-                      : `This scatter plot helps identify the relationship between outdoor temperature and ${mode === 'heating' ? 'heating' : 'cooling'} rate. Points clustered together indicate consistent system performance, while outliers may indicate unusual conditions or system issues.`
-                    }
+                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot helps identify the relationship between outdoor temperature and {mode === 'heating' ? 'heating' : 'cooling'} rate. 
+                    Points clustered together indicate consistent system performance, while outliers may indicate unusual conditions or system issues.
                   </p>
                 </div>
               </>
@@ -1196,6 +1182,192 @@
       );
     };
 
+    const CyclePlotModal = ({ onClose }) => {
+      const [cycleData, setCycleData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        const fetchCycleData = async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const now = new Date();
+            const oneYearAgo = new Date(now);
+            oneYearAgo.setFullYear(now.getFullYear() - 1);
+            const cutoffDate = new Date('2026-01-15T00:00:00Z');
+            const startDate = oneYearAgo > cutoffDate ? oneYearAgo.toISOString() : cutoffDate.toISOString();
+            const endDate = now.toISOString();
+            
+            const fetchAllPages = async (table, batchSize = 1000) => {
+              let allData = [];
+              let offset = 0;
+              let hasMore = true;
+              
+              while (hasMore) {
+                const response = await fetch(
+                  `${SUPABASE_URL}/rest/v1/${table}?select=avg_cool_cycle,outdoor_temp_f&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
+                  { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+                );
+                if (!response.ok) break;
+                const data = await response.json();
+                if (!Array.isArray(data) || data.length === 0) {
+                  hasMore = false;
+                } else {
+                  allData = allData.concat(data);
+                  offset += batchSize;
+                  if (data.length < batchSize) hasMore = false;
+                }
+              }
+              return allData;
+            };
+            
+            const [kampenData, townhomeData, flcondoData] = await Promise.all([
+              fetchAllPages('kampen_readings'),
+              fetchAllPages('townhome_readings'),
+              fetchAllPages('flcondo_readings')
+            ]);
+
+            const allData = [
+              ...kampenData.map(row => ({ ...row, site_name: 'Kampen' })),
+              ...townhomeData.map(row => ({ ...row, site_name: 'Townhome' })),
+              ...flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }))
+            ];
+            
+            const filteredData = allData.filter(row => 
+              row.avg_cool_cycle != null && row.outdoor_temp_f != null &&
+              !isNaN(row.avg_cool_cycle) && !isNaN(row.outdoor_temp_f) && row.avg_cool_cycle > 0
+            );
+
+            if (filteredData.length === 0) throw new Error('No valid avg cool cycle data found');
+
+            const kampenPoints = filteredData.filter(row => row.site_name === 'Kampen')
+              .map(row => ({ x: parseFloat(row.outdoor_temp_f), y: parseFloat(row.avg_cool_cycle) }));
+            const townhomePoints = filteredData.filter(row => row.site_name === 'Townhome')
+              .map(row => ({ x: parseFloat(row.outdoor_temp_f), y: parseFloat(row.avg_cool_cycle) }));
+            const flcondoPoints = filteredData.filter(row => row.site_name === 'FLcondo')
+              .map(row => ({ x: parseFloat(row.outdoor_temp_f), y: parseFloat(row.avg_cool_cycle) }));
+
+            setCycleData({ kampenPoints, townhomePoints, flcondoPoints, totalPoints: filteredData.length });
+          } catch (err) {
+            setError(err.message);
+          } finally {
+            setLoading(false);
+          }
+        };
+        fetchCycleData();
+      }, []);
+
+      useEffect(() => {
+        if (!cycleData || !chartRef.current || loading) return;
+        if (chartInstance.current) chartInstance.current.destroy();
+
+        const ctx = chartRef.current.getContext('2d');
+        
+        const calcRegression = (points) => {
+          if (points.length < 2) return null;
+          const n = points.length;
+          let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+          points.forEach(p => { sumX += p.x; sumY += p.y; sumXY += p.x * p.y; sumX2 += p.x * p.x; });
+          const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+          const intercept = (sumY - slope * sumX) / n;
+          return { slope, intercept };
+        };
+        
+        const kampenReg = calcRegression(cycleData.kampenPoints);
+        const townhomeReg = calcRegression(cycleData.townhomePoints);
+        const flcondoReg = calcRegression(cycleData.flcondoPoints);
+        
+        const regressionDatasets = [];
+        
+        [[kampenReg, cycleData.kampenPoints, '#22d3ee', 'Kampen Trend'],
+         [townhomeReg, cycleData.townhomePoints, '#fbbf24', 'Townhome Trend'],
+         [flcondoReg, cycleData.flcondoPoints, '#a855f7', 'FLcondo Trend']
+        ].forEach(([reg, points, color, label]) => {
+          if (reg && points.length > 0) {
+            const xVals = points.map(p => p.x);
+            const minX = Math.min(...xVals);
+            const maxX = Math.max(...xVals);
+            regressionDatasets.push({
+              label,
+              data: [
+                { x: minX, y: reg.slope * minX + reg.intercept },
+                { x: maxX, y: reg.slope * maxX + reg.intercept }
+              ],
+              borderColor: color,
+              borderWidth: 2,
+              borderDash: [5, 5],
+              pointRadius: 0,
+              type: 'line',
+              fill: false
+            });
+          }
+        });
+
+        chartInstance.current = new Chart(ctx, {
+          type: 'scatter',
+          data: {
+            datasets: [
+              { label: 'Kampen', data: cycleData.kampenPoints, backgroundColor: 'rgba(34, 211, 238, 0.6)', borderColor: '#22d3ee', pointRadius: 3, pointHoverRadius: 5 },
+              { label: 'Townhome', data: cycleData.townhomePoints, backgroundColor: 'rgba(251, 191, 36, 0.6)', borderColor: '#fbbf24', pointRadius: 3, pointHoverRadius: 5 },
+              { label: 'FLcondo', data: cycleData.flcondoPoints, backgroundColor: 'rgba(168, 85, 247, 0.6)', borderColor: '#a855f7', pointRadius: 3, pointHoverRadius: 5 },
+              ...regressionDatasets
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'nearest', intersect: false },
+            plugins: {
+              legend: { display: true, position: 'top', labels: { color: '#94a3b8', font: { family: '"JetBrains Mono", monospace', size: 12 }, usePointStyle: true, filter: (item) => !item.text.includes('Trend') } },
+              tooltip: {
+                enabled: true,
+                backgroundColor: 'rgba(30, 41, 59, 0.95)',
+                titleColor: '#22d3ee',
+                bodyColor: '#e2e8f0',
+                borderColor: '#22d3ee',
+                borderWidth: 1,
+                callbacks: { title: (ctx) => ctx[0].dataset.label, label: (ctx) => [`OAT: ${ctx.parsed.x.toFixed(1)}°F`, `Cycle: ${ctx.parsed.y.toFixed(1)} min`] }
+              }
+            },
+            scales: {
+              x: { type: 'linear', position: 'bottom', title: { display: true, text: 'Outdoor Air Temperature (°F)', color: '#94a3b8', font: { family: '"JetBrains Mono", monospace', size: 13, weight: 'bold' } }, grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8' } },
+              y: { type: 'linear', title: { display: true, text: 'Average Cool Cycle (minutes)', color: '#94a3b8', font: { family: '"JetBrains Mono", monospace', size: 13, weight: 'bold' } }, grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8' } }
+            }
+          }
+        });
+
+        return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+      }, [cycleData, loading]);
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="close-button" onClick={onClose}>×</button>
+            <h2 style={{ color: '#22d3ee', marginBottom: '0.5rem', fontSize: '1.5rem', fontFamily: '"Orbitron", sans-serif' }}>
+              Average Cool Cycle vs Outdoor Temperature
+            </h2>
+            <p style={{ color: '#94a3b8', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+              Scatter plot showing relationship between outdoor temperature and cooling cycle duration
+            </p>
+            {loading && <div style={{ textAlign: 'center', padding: '3rem', color: '#22d3ee' }}>Loading data...</div>}
+            {error && <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: '8px', color: '#fca5a5', marginBottom: '1rem' }}>Error: {error}</div>}
+            {!loading && !error && cycleData && cycleData.totalPoints > 0 && (
+              <>
+                <div style={{ color: '#94a3b8', marginBottom: '1rem', fontSize: '0.875rem', fontFamily: '"JetBrains Mono", monospace' }}>
+                  Total: {cycleData.totalPoints.toLocaleString()} | Kampen: {cycleData.kampenPoints.length.toLocaleString()} | Townhome: {cycleData.townhomePoints.length.toLocaleString()} | FLcondo: {cycleData.flcondoPoints.length.toLocaleString()}
+                </div>
+                <div className="chart-container"><canvas ref={chartRef}></canvas></div>
+              </>
+            )}
+            {!loading && !error && cycleData && cycleData.totalPoints === 0 && <div className="error-message">No data available</div>}
+          </div>
+        </div>
+      );
+    };
+
     const RefreshCw = ({ size = 24, className = '' }) => (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
@@ -1228,6 +1400,7 @@
       const [countdown, setCountdown] = useState(180);
       const [selectedChart, setSelectedChart] = useState(null);
       const [showScatterPlot, setShowScatterPlot] = useState(null); // null, 'heating', or 'cooling'
+      const [showCyclePlot, setShowCyclePlot] = useState(false); // for Avg Cool Cycle vs OAT plot
       const [sortColumn, setSortColumn] = useState(null);
       const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
       const [activeTab, setActiveTab] = useState('heating'); // 'heating', 'cooling', or 'site_setup'
@@ -1709,51 +1882,51 @@
                   )}
                   
                   {activeTab === 'cooling' && (
-                    <button
-                      onClick={() => setShowScatterPlot('cool_cycle')}
-                      style={{
-                        background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '0.5rem 1rem',
-                        color: '#0f172a',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                    >
-                      🔄 Cool Rate vs Avg Cool Cycle
-                    </button>
-                  )}
-                  
-                  {activeTab === 'cooling' && (
-                    <button
-                      onClick={() => setShowScatterPlot('cooling')}
-                      style={{
-                        background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '0.5rem 1rem',
-                        color: '#0f172a',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                    >
-                      📉 Cool Rate vs Outdoor Temp
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setShowCyclePlot(true)}
+                        style={{
+                          background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.5rem 1rem',
+                          color: '#0f172a',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          transition: 'all 0.2s',
+                          marginBottom: '0.5rem'
+                        }}
+                        onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                        onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                      >
+                        ⏱️ Avg Cool Cycle vs Outdoor Temp
+                      </button>
+                      <button
+                        onClick={() => setShowScatterPlot('cooling')}
+                        style={{
+                          background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.5rem 1rem',
+                          color: '#0f172a',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                        onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                      >
+                        📉 Cool Rate vs Outdoor Temp
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -2547,6 +2720,12 @@
             <ScatterPlotModal 
               mode={showScatterPlot}
               onClose={() => setShowScatterPlot(null)}
+            />
+          )}
+
+          {showCyclePlot && (
+            <CyclePlotModal 
+              onClose={() => setShowCyclePlot(false)}
             />
           )}
         </div>
