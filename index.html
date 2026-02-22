@@ -1733,6 +1733,8 @@
                   )}
                   
                   {activeTab === 'cooling' && (
+                    <button
+                      onClick={() => setShowScatterPlot('cooling')}
                       style={{
                         background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
                         border: 'none',
