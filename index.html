@@ -1778,7 +1778,11 @@
                           : tab.id === 'cooling'
                           ? 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)'
                           : '#22c55e')
-                      : 'transparent',
+                      : (tab.id === 'heating'
+                          ? 'rgba(251, 191, 36, 0.45)'
+                          : tab.id === 'cooling'
+                          ? 'rgba(34, 211, 238, 0.45)'
+                          : 'rgba(34, 197, 94, 0.45)'),
                     border: 'none',
                     borderRadius: '8px',
                     padding: '1rem',
@@ -1795,13 +1799,25 @@
                   }}
                   onMouseEnter={(e) => {
                     if (activeTab !== tab.id) {
-                      e.target.style.background = 'rgba(34, 211, 238, 0.1)';
-                      e.target.style.color = '#22d3ee';
+                      e.target.style.background = tab.id === 'heating'
+                        ? 'rgba(251, 191, 36, 0.6)'
+                        : tab.id === 'cooling'
+                        ? 'rgba(34, 211, 238, 0.6)'
+                        : 'rgba(34, 197, 94, 0.6)';
+                      e.target.style.color = tab.id === 'heating'
+                        ? '#fbbf24'
+                        : tab.id === 'cooling'
+                        ? '#22d3ee'
+                        : '#22c55e';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (activeTab !== tab.id) {
-                      e.target.style.background = 'transparent';
+                      e.target.style.background = tab.id === 'heating'
+                        ? 'rgba(251, 191, 36, 0.45)'
+                        : tab.id === 'cooling'
+                        ? 'rgba(34, 211, 238, 0.45)'
+                        : 'rgba(34, 197, 94, 0.45)';
                       e.target.style.color = '#94a3b8';
                     }
                   }}
