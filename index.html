@@ -453,8 +453,8 @@
       const rateColumn = mode === 'heating' ? 'heat_iatr_meas_daily' : 'cool_iatr_meas_daily';
       const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature' : 'Cool Rate vs Outdoor Temperature';
       const subtitle = mode === 'heating' 
-        ? 'Scatter plot showing relationship between outdoor temperature and heating rate'
-        : 'Scatter plot showing relationship between outdoor temperature and cooling rate';
+        ? 'Scatter plot of data 60 days prior to last heating cycle.'
+        : 'Scatter plot of data 60 days prior to last cooling cycle.';
       const yAxisLabel = mode === 'heating' ? 'Heat Rate (°F/hr)' : 'Cool Rate (°F/hr)';
 
       useEffect(() => {
