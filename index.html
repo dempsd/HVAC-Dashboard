@@ -1778,12 +1778,14 @@
                           : tab.id === 'cooling'
                           ? 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)'
                           : '#22c55e')
+                      : 'transparent',
+                    border: activeTab === tab.id 
+                      ? 'none'
                       : (tab.id === 'heating'
-                          ? 'rgba(251, 191, 36, 0.45)'
+                          ? '4px solid #fbbf24'
                           : tab.id === 'cooling'
-                          ? 'rgba(34, 211, 238, 0.45)'
-                          : 'rgba(34, 197, 94, 0.45)'),
-                    border: 'none',
+                          ? '4px solid #22d3ee'
+                          : '4px solid #22c55e'),
                     borderRadius: '8px',
                     padding: '1rem',
                     color: activeTab === tab.id ? '#0f172a' : '#94a3b8',
@@ -1799,11 +1801,7 @@
                   }}
                   onMouseEnter={(e) => {
                     if (activeTab !== tab.id) {
-                      e.target.style.background = tab.id === 'heating'
-                        ? 'rgba(251, 191, 36, 0.6)'
-                        : tab.id === 'cooling'
-                        ? 'rgba(34, 211, 238, 0.6)'
-                        : 'rgba(34, 197, 94, 0.6)';
+                      e.target.style.background = 'rgba(34, 211, 238, 0.1)';
                       e.target.style.color = tab.id === 'heating'
                         ? '#fbbf24'
                         : tab.id === 'cooling'
@@ -1813,11 +1811,7 @@
                   }}
                   onMouseLeave={(e) => {
                     if (activeTab !== tab.id) {
-                      e.target.style.background = tab.id === 'heating'
-                        ? 'rgba(251, 191, 36, 0.45)'
-                        : tab.id === 'cooling'
-                        ? 'rgba(34, 211, 238, 0.45)'
-                        : 'rgba(34, 197, 94, 0.45)';
+                      e.target.style.background = 'transparent';
                       e.target.style.color = '#94a3b8';
                     }
                   }}
