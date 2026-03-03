@@ -450,7 +450,7 @@
       const chartInstance = useRef(null);
 
       // Determine which column to use based on mode
-      const rateColumn = mode === 'heating' ? 'heat_iatr_meas_daily' : 'cool_iatr_meas_daily';
+      const rateColumn = mode === 'heating' ? 'heat_iatr_meas' : 'cool_iatr_meas';
       const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature' : 'Cool Rate vs Outdoor Temperature';
       const subtitle = mode === 'heating' 
         ? 'Scatter plot of data 30 days prior to last heating cycle.'
