@@ -453,8 +453,8 @@
       const rateColumn = mode === 'heating' ? 'heat_iatr_meas_daily' : 'cool_iatr_meas_daily';
       const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature' : 'Cool Rate vs Outdoor Temperature';
       const subtitle = mode === 'heating' 
-        ? 'Scatter plot of data 60 days prior to last heating cycle.'
-        : 'Scatter plot of data 60 days prior to last cooling cycle.';
+        ? 'Scatter plot of data 30 days prior to last heating cycle.'
+        : 'Scatter plot of data 30 days prior to last cooling cycle.';
       const yAxisLabel = mode === 'heating' ? 'Heat Rate (°F/hr)' : 'Cool Rate (°F/hr)';
 
       useEffect(() => {
@@ -502,14 +502,14 @@
               throw new Error(`No ${mode} measurements found in any site`);
             }
             
-            // Step 2: Calculate 60-day lookback from most recent measurement
+            // Step 2: Calculate 30-day lookback from most recent measurement
             const endDate = mostRecent.toISOString();
             const startDate = new Date(mostRecent);
-            startDate.setDate(startDate.getDate() - 60);
+            startDate.setDate(startDate.getDate() - 30);
             const startDateISO = startDate.toISOString();
             
             console.log(`Most recent measurement: ${endDate}`);
-            console.log(`Looking back 60 days to: ${startDateISO}`);
+            console.log(`Looking back 30 days to: ${startDateISO}`);
             
             // Step 3: Fetch all data in this 30-day window
             const fetchAllPages = async (table, batchSize = 1000) => {
