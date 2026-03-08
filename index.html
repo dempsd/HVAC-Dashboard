@@ -453,8 +453,8 @@
       const rateColumn = mode === 'heating' ? 'heat_iatr_meas' : 'cool_iatr_meas';
       const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature' : 'Cool Rate vs Outdoor Temperature';
       const subtitle = mode === 'heating' 
-        ? 'Scatter plot with binned median trend (5°F bins). Data from 30 days prior to last heating cycle.'
-        : 'Scatter plot with binned median trend (5°F bins). Data from 30 days prior to last cooling cycle.';
+        ? 'Scatter plot of data 30 days prior to last heating cycle.'
+        : 'Scatter plot of data 30 days prior to last cooling cycle.';
       const yAxisLabel = mode === 'heating' ? 'Heat Rate (°F/hr)' : 'Cool Rate (°F/hr)';
 
       useEffect(() => {
@@ -636,147 +636,100 @@
 
         const ctx = chartRef.current.getContext('2d');
         
-        // Binning + Median Interpolation calculation function
-        const calculateBinnedMedian = (points, binSize = 5) => {
+        // Linear regression calculation function
+        const calculateLinearRegression = (points) => {
           if (points.length < 2) return null;
           
-          // Calculate median of an array
-          const median = (arr) => {
-            if (arr.length === 0) return null;
-            const sorted = [...arr].sort((a, b) => a - b);
-            const mid = Math.floor(sorted.length / 2);
-            return sorted.length % 2 === 0 
-              ? (sorted[mid - 1] + sorted[mid]) / 2 
-              : sorted[mid];
-          };
+          const n = points.length;
+          let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
           
-          // Find min and max x values
-          const xValues = points.map(p => p.x);
-          const minX = Math.min(...xValues);
-          const maxX = Math.max(...xValues);
-          
-          // Create bins
-          const bins = {};
-          const binStart = Math.floor(minX / binSize) * binSize;
-          const binEnd = Math.ceil(maxX / binSize) * binSize;
-          
-          // Initialize bins
-          for (let temp = binStart; temp <= binEnd; temp += binSize) {
-            bins[temp] = [];
-          }
-          
-          // Fill bins with y values
           points.forEach(point => {
-            const binKey = Math.floor(point.x / binSize) * binSize;
-            if (bins[binKey]) {
-              bins[binKey].push(point.y);
-            }
+            sumX += point.x;
+            sumY += point.y;
+            sumXY += point.x * point.y;
+            sumX2 += point.x * point.x;
           });
           
-          // Calculate median for each bin
-          const binnedMedians = [];
-          Object.keys(bins).forEach(binKey => {
-            const binTemp = parseFloat(binKey);
-            const yValues = bins[binKey];
-            if (yValues.length > 0) {
-              const medianY = median(yValues);
-              binnedMedians.push({ x: binTemp + binSize / 2, y: medianY }); // Use bin center
-            }
-          });
+          const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+          const intercept = (sumY - slope * sumX) / n;
           
-          // Sort by x
-          binnedMedians.sort((a, b) => a.x - b.x);
-          
-          return binnedMedians;
+          return { slope, intercept };
         };
         
-        // Calculate balance point (where median crosses zero) using interpolation
-        const calculateBalancePoint = (binnedMedians) => {
-          if (!binnedMedians || binnedMedians.length < 2) return null;
-          
-          // Find where the median crosses zero
-          for (let i = 0; i < binnedMedians.length - 1; i++) {
-            const current = binnedMedians[i];
-            const next = binnedMedians[i + 1];
-            
-            // Check if zero is crossed between these two points
-            if ((current.y >= 0 && next.y <= 0) || (current.y <= 0 && next.y >= 0)) {
-              // Linear interpolation to find exact crossing point
-              const slope = (next.y - current.y) / (next.x - current.x);
-              const xIntercept = current.x - current.y / slope;
-              return xIntercept;
-            }
-          }
-          
-          // If no crossing found, extrapolate from last two points
-          if (binnedMedians.length >= 2) {
-            const last = binnedMedians[binnedMedians.length - 1];
-            const secondLast = binnedMedians[binnedMedians.length - 2];
-            const slope = (last.y - secondLast.y) / (last.x - secondLast.x);
-            if (Math.abs(slope) > 0.0001) { // Avoid division by near-zero
-              return last.x - last.y / slope;
-            }
-          }
-          
-          return null;
-        };
+        // Calculate regression lines for each site
+        const kampenRegression = calculateLinearRegression(scatterData.kampenPoints);
+        const townhomeRegression = calculateLinearRegression(scatterData.townhomePoints);
+        const flcondoRegression = calculateLinearRegression(scatterData.flcondoPoints);
         
-        // Calculate binned medians for each site
-        const kampenBinned = calculateBinnedMedian(scatterData.kampenPoints);
-        const townhomeBinned = calculateBinnedMedian(scatterData.townhomePoints);
-        const flcondoBinned = calculateBinnedMedian(scatterData.flcondoPoints);
-        
-        // Get x-axis range
+        // Get x-axis range for regression lines
         const allPoints = [...scatterData.kampenPoints, ...scatterData.townhomePoints, ...scatterData.flcondoPoints];
         const xValues = allPoints.map(p => p.x);
         const minX = Math.min(...xValues);
         const maxX = Math.max(...xValues);
         
-        // Create binned median trend line datasets
-        const trendDatasets = [];
+        // Create regression line datasets
+        const regressionDatasets = [];
         
-        if (kampenBinned && kampenBinned.length > 0) {
-          trendDatasets.push({
-            label: 'Kampen Trend (Median)',
-            data: kampenBinned,
+        if (kampenRegression && scatterData.kampenPoints.length > 0) {
+          const kampenXValues = scatterData.kampenPoints.map(p => p.x);
+          const kampenMinX = Math.min(...kampenXValues);
+          const kampenMaxX = Math.max(...kampenXValues);
+          
+          regressionDatasets.push({
+            label: 'Kampen Trend',
+            data: [
+              { x: kampenMinX, y: kampenRegression.slope * kampenMinX + kampenRegression.intercept },
+              { x: kampenMaxX, y: kampenRegression.slope * kampenMaxX + kampenRegression.intercept }
+            ],
             showLine: true,
             borderColor: '#22d3ee',
-            borderWidth: 3,
-            pointRadius: 3,
-            pointBackgroundColor: '#22d3ee',
+            borderWidth: 2,
+            borderDash: [8, 4],
+            pointRadius: 0,
             fill: false,
-            order: 1,
-            tension: 0.2
+            order: 1
           });
         }
         
-        if (townhomeBinned && townhomeBinned.length > 0) {
-          trendDatasets.push({
-            label: 'Townhome Trend (Median)',
-            data: townhomeBinned,
+        if (townhomeRegression && scatterData.townhomePoints.length > 0) {
+          const townhomeXValues = scatterData.townhomePoints.map(p => p.x);
+          const townhomeMinX = Math.min(...townhomeXValues);
+          const townhomeMaxX = Math.max(...townhomeXValues);
+          
+          regressionDatasets.push({
+            label: 'Townhome Trend',
+            data: [
+              { x: townhomeMinX, y: townhomeRegression.slope * townhomeMinX + townhomeRegression.intercept },
+              { x: townhomeMaxX, y: townhomeRegression.slope * townhomeMaxX + townhomeRegression.intercept }
+            ],
             showLine: true,
             borderColor: '#fbbf24',
-            borderWidth: 3,
-            pointRadius: 3,
-            pointBackgroundColor: '#fbbf24',
+            borderWidth: 2,
+            borderDash: [8, 4],
+            pointRadius: 0,
             fill: false,
-            order: 1,
-            tension: 0.2
+            order: 1
           });
         }
         
-        if (flcondoBinned && flcondoBinned.length > 0) {
-          trendDatasets.push({
-            label: 'FLcondo Trend (Median)',
-            data: flcondoBinned,
+        if (flcondoRegression && scatterData.flcondoPoints.length > 0) {
+          const flcondoXValues = scatterData.flcondoPoints.map(p => p.x);
+          const flcondoMinX = Math.min(...flcondoXValues);
+          const flcondoMaxX = Math.max(...flcondoXValues);
+          
+          regressionDatasets.push({
+            label: 'FLcondo Trend',
+            data: [
+              { x: flcondoMinX, y: flcondoRegression.slope * flcondoMinX + flcondoRegression.intercept },
+              { x: flcondoMaxX, y: flcondoRegression.slope * flcondoMaxX + flcondoRegression.intercept }
+            ],
             showLine: true,
             borderColor: '#a855f7',
-            borderWidth: 3,
-            pointRadius: 3,
-            pointBackgroundColor: '#a855f7',
+            borderWidth: 2,
+            borderDash: [8, 4],
+            pointRadius: 0,
             fill: false,
-            order: 1,
-            tension: 0.2
+            order: 1
           });
         }
         
@@ -814,7 +767,7 @@
                 pointHoverRadius: 6,
                 order: 2
               },
-              ...trendDatasets
+              ...regressionDatasets
             ]
           },
           options: {
@@ -887,28 +840,22 @@
               const ctx = chart.ctx;
               ctx.save();
               
-              // Calculate x-intercepts (balance points) for each site using binned medians
+              // Calculate x-intercepts for each site
               const intercepts = [];
               
-              if (kampenBinned && kampenBinned.length > 0) {
-                const xIntercept = calculateBalancePoint(kampenBinned);
-                if (xIntercept !== null) {
-                  intercepts.push({ site: 'Kampen', value: xIntercept, color: '#22d3ee' });
-                }
+              if (kampenRegression && scatterData.kampenPoints.length > 0) {
+                const xIntercept = -kampenRegression.intercept / kampenRegression.slope;
+                intercepts.push({ site: 'Kampen', value: xIntercept, color: '#22d3ee' });
               }
               
-              if (townhomeBinned && townhomeBinned.length > 0) {
-                const xIntercept = calculateBalancePoint(townhomeBinned);
-                if (xIntercept !== null) {
-                  intercepts.push({ site: 'Townhome', value: xIntercept, color: '#fbbf24' });
-                }
+              if (townhomeRegression && scatterData.townhomePoints.length > 0) {
+                const xIntercept = -townhomeRegression.intercept / townhomeRegression.slope;
+                intercepts.push({ site: 'Townhome', value: xIntercept, color: '#fbbf24' });
               }
               
-              if (flcondoBinned && flcondoBinned.length > 0) {
-                const xIntercept = calculateBalancePoint(flcondoBinned);
-                if (xIntercept !== null) {
-                  intercepts.push({ site: 'FLcondo', value: xIntercept, color: '#a855f7' });
-                }
+              if (flcondoRegression && scatterData.flcondoPoints.length > 0) {
+                const xIntercept = -flcondoRegression.intercept / flcondoRegression.slope;
+                intercepts.push({ site: 'FLcondo', value: xIntercept, color: '#a855f7' });
               }
               
               if (intercepts.length === 0) {
@@ -1039,10 +986,8 @@
 
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>
-                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot shows the relationship between outdoor temperature and {mode === 'heating' ? 'heating' : 'cooling'} rate. 
-                    The trend line uses <strong>binned median analysis</strong> (5°F temperature bins), which is more robust to outliers than linear regression. 
-                    The balance point temperature (where rate = 0) is calculated by interpolating where the median trend crosses zero. 
-                    This provides a realistic estimate that isn't skewed by extreme measurements.
+                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot helps identify the relationship between outdoor temperature and {mode === 'heating' ? 'heating' : 'cooling'} rate. 
+                    Points clustered together indicate consistent system performance, while outliers may indicate unusual conditions or system issues.
                   </p>
                 </div>
               </>
