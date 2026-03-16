@@ -453,8 +453,8 @@
       const rateColumn = mode === 'heating' ? 'heat_iatr_meas' : 'cool_iatr_meas';
       const title = mode === 'heating' ? 'Heat Rate vs Outdoor Temperature' : 'Cool Rate vs Outdoor Temperature';
       const subtitle = mode === 'heating' 
-        ? 'Scatter plot of data 30 days prior to last heating cycle.'
-        : 'Scatter plot of data 30 days prior to last cooling cycle.';
+        ? 'Scatter plot with mean and 10th percentile regression lines. Data from 30 days prior to last heating cycle.'
+        : 'Scatter plot with mean and 10th percentile regression lines. Data from 30 days prior to last cooling cycle.';
       const yAxisLabel = mode === 'heating' ? 'Heat Rate (°F/hr)' : 'Cool Rate (°F/hr)';
 
       useEffect(() => {
@@ -656,10 +656,37 @@
           return { slope, intercept };
         };
         
+        // Calculate 10th percentile regression by shifting OLS line
+        const calculate10thPercentileRegression = (points, olsRegression) => {
+          if (!olsRegression || points.length < 2) return null;
+          
+          // Calculate residuals (actual - predicted)
+          const residuals = points.map(point => {
+            const predicted = olsRegression.slope * point.x + olsRegression.intercept;
+            return point.y - predicted;
+          });
+          
+          // Sort residuals and find 10th percentile
+          residuals.sort((a, b) => a - b);
+          const index = Math.floor(residuals.length * 0.10);
+          const percentile10 = residuals[index];
+          
+          // Shift intercept down by the 10th percentile residual
+          return {
+            slope: olsRegression.slope,
+            intercept: olsRegression.intercept + percentile10
+          };
+        };
+        
         // Calculate regression lines for each site
         const kampenRegression = calculateLinearRegression(scatterData.kampenPoints);
         const townhomeRegression = calculateLinearRegression(scatterData.townhomePoints);
         const flcondoRegression = calculateLinearRegression(scatterData.flcondoPoints);
+        
+        // Calculate 10th percentile lines
+        const kampen10thPercentile = calculate10thPercentileRegression(scatterData.kampenPoints, kampenRegression);
+        const townhome10thPercentile = calculate10thPercentileRegression(scatterData.townhomePoints, townhomeRegression);
+        const flcondo10thPercentile = calculate10thPercentileRegression(scatterData.flcondoPoints, flcondoRegression);
         
         // Get x-axis range for regression lines
         const allPoints = [...scatterData.kampenPoints, ...scatterData.townhomePoints, ...scatterData.flcondoPoints];
@@ -675,8 +702,9 @@
           const kampenMinX = Math.min(...kampenXValues);
           const kampenMaxX = Math.max(...kampenXValues);
           
+          // Standard regression line
           regressionDatasets.push({
-            label: 'Kampen Trend',
+            label: 'Kampen Mean',
             data: [
               { x: kampenMinX, y: kampenRegression.slope * kampenMinX + kampenRegression.intercept },
               { x: kampenMaxX, y: kampenRegression.slope * kampenMaxX + kampenRegression.intercept }
@@ -689,6 +717,24 @@
             fill: false,
             order: 1
           });
+          
+          // 10th percentile line
+          if (kampen10thPercentile) {
+            regressionDatasets.push({
+              label: 'Kampen 10th %ile',
+              data: [
+                { x: kampenMinX, y: kampen10thPercentile.slope * kampenMinX + kampen10thPercentile.intercept },
+                { x: kampenMaxX, y: kampen10thPercentile.slope * kampenMaxX + kampen10thPercentile.intercept }
+              ],
+              showLine: true,
+              borderColor: '#22d3ee',
+              borderWidth: 2,
+              borderDash: [2, 2],
+              pointRadius: 0,
+              fill: false,
+              order: 1
+            });
+          }
         }
         
         if (townhomeRegression && scatterData.townhomePoints.length > 0) {
@@ -696,8 +742,9 @@
           const townhomeMinX = Math.min(...townhomeXValues);
           const townhomeMaxX = Math.max(...townhomeXValues);
           
+          // Standard regression line
           regressionDatasets.push({
-            label: 'Townhome Trend',
+            label: 'Townhome Mean',
             data: [
               { x: townhomeMinX, y: townhomeRegression.slope * townhomeMinX + townhomeRegression.intercept },
               { x: townhomeMaxX, y: townhomeRegression.slope * townhomeMaxX + townhomeRegression.intercept }
@@ -710,6 +757,24 @@
             fill: false,
             order: 1
           });
+          
+          // 10th percentile line
+          if (townhome10thPercentile) {
+            regressionDatasets.push({
+              label: 'Townhome 10th %ile',
+              data: [
+                { x: townhomeMinX, y: townhome10thPercentile.slope * townhomeMinX + townhome10thPercentile.intercept },
+                { x: townhomeMaxX, y: townhome10thPercentile.slope * townhomeMaxX + townhome10thPercentile.intercept }
+              ],
+              showLine: true,
+              borderColor: '#fbbf24',
+              borderWidth: 2,
+              borderDash: [2, 2],
+              pointRadius: 0,
+              fill: false,
+              order: 1
+            });
+          }
         }
         
         if (flcondoRegression && scatterData.flcondoPoints.length > 0) {
@@ -717,8 +782,9 @@
           const flcondoMinX = Math.min(...flcondoXValues);
           const flcondoMaxX = Math.max(...flcondoXValues);
           
+          // Standard regression line
           regressionDatasets.push({
-            label: 'FLcondo Trend',
+            label: 'FLcondo Mean',
             data: [
               { x: flcondoMinX, y: flcondoRegression.slope * flcondoMinX + flcondoRegression.intercept },
               { x: flcondoMaxX, y: flcondoRegression.slope * flcondoMaxX + flcondoRegression.intercept }
@@ -731,6 +797,24 @@
             fill: false,
             order: 1
           });
+          
+          // 10th percentile line
+          if (flcondo10thPercentile) {
+            regressionDatasets.push({
+              label: 'FLcondo 10th %ile',
+              data: [
+                { x: flcondoMinX, y: flcondo10thPercentile.slope * flcondoMinX + flcondo10thPercentile.intercept },
+                { x: flcondoMaxX, y: flcondo10thPercentile.slope * flcondoMaxX + flcondo10thPercentile.intercept }
+              ],
+              showLine: true,
+              borderColor: '#a855f7',
+              borderWidth: 2,
+              borderDash: [2, 2],
+              pointRadius: 0,
+              fill: false,
+              order: 1
+            });
+          }
         }
         
         chartInstance.current = new Chart(ctx, {
@@ -840,21 +924,21 @@
               const ctx = chart.ctx;
               ctx.save();
               
-              // Calculate x-intercepts for each site
+              // Calculate x-intercepts for each site using 10th percentile line
               const intercepts = [];
               
-              if (kampenRegression && scatterData.kampenPoints.length > 0) {
-                const xIntercept = -kampenRegression.intercept / kampenRegression.slope;
+              if (kampen10thPercentile && scatterData.kampenPoints.length > 0) {
+                const xIntercept = -kampen10thPercentile.intercept / kampen10thPercentile.slope;
                 intercepts.push({ site: 'Kampen', value: xIntercept, color: '#22d3ee' });
               }
               
-              if (townhomeRegression && scatterData.townhomePoints.length > 0) {
-                const xIntercept = -townhomeRegression.intercept / townhomeRegression.slope;
+              if (townhome10thPercentile && scatterData.townhomePoints.length > 0) {
+                const xIntercept = -townhome10thPercentile.intercept / townhome10thPercentile.slope;
                 intercepts.push({ site: 'Townhome', value: xIntercept, color: '#fbbf24' });
               }
               
-              if (flcondoRegression && scatterData.flcondoPoints.length > 0) {
-                const xIntercept = -flcondoRegression.intercept / flcondoRegression.slope;
+              if (flcondo10thPercentile && scatterData.flcondoPoints.length > 0) {
+                const xIntercept = -flcondo10thPercentile.intercept / flcondo10thPercentile.slope;
                 intercepts.push({ site: 'FLcondo', value: xIntercept, color: '#a855f7' });
               }
               
@@ -894,7 +978,7 @@
               ctx.font = 'bold 13px "JetBrains Mono", monospace';
               ctx.textAlign = 'left';
               ctx.textBaseline = 'middle';
-              ctx.fillText('IATR=0 Balance Point', tableX + padding, tableY + headerHeight / 2);
+              ctx.fillText('IATR=0 (10th %ile)', tableX + padding, tableY + headerHeight / 2);
               
               // Draw separator line
               ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
@@ -986,8 +1070,10 @@
 
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34, 211, 238, 0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>
-                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot helps identify the relationship between outdoor temperature and {mode === 'heating' ? 'heating' : 'cooling'} rate. 
-                    Points clustered together indicate consistent system performance, while outliers may indicate unusual conditions or system issues.
+                    <strong style={{ color: '#22d3ee' }}>Analysis:</strong> This scatter plot shows the relationship between outdoor temperature and {mode === 'heating' ? 'heating' : 'cooling'} rate. 
+                    Two trend lines are shown: the <strong>mean regression</strong> (dashed line) passes through the centroid of the data, while the 
+                    <strong> 10th percentile line</strong> (dotted line) represents a conservative lower bound with 90% of data points above it. 
+                    The balance point temperature (where rate = 0) is calculated from the 10th percentile line, providing a more conservative estimate for design conditions.
                   </p>
                 </div>
               </>
@@ -1784,7 +1870,7 @@
                       : (tab.id === 'heating'
                           ? '4px solid #fbbf24'
                           : tab.id === 'cooling'
-                          ? '4px solid #22d3ee'
+                          ? '4px solid #2dd4ed'
                           : '4px solid #22c55e'),
                     borderRadius: '8px',
                     padding: '1rem',
@@ -1805,7 +1891,7 @@
                       e.target.style.color = tab.id === 'heating'
                         ? '#fbbf24'
                         : tab.id === 'cooling'
-                        ? '#22d3ee'
+                        ? '#2dd4ed'
                         : '#22c55e';
                     }
                   }}
