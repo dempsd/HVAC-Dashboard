@@ -253,10 +253,15 @@
     const SUPABASE_URL = 'https://uaksyrcwtbgxwnxbwroh.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVha3N5cmN3dGJneHdueGJ3cm9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3MTUwNDYsImV4cCI6MjA3ODI5MTA0Nn0.wLXUmL427RWHbBDesuaT1h0Z-RT0SX0fZGaXh1uKjIU';
 
+    // Heating system configuration
+    // modulationPercent: typical operating capacity for modulating systems
+    //   GFM: 40% of max capacity
+    //   GF2: 65% of max capacity  
+    //   GF1, EH1: null (non-modulating)
     const SITE_CONFIG = {
-      'Kampen': { type: 'GF2', systemKBtuh: 78 },
-      'Townhome': { type: 'GF1', systemKBtuh: 101 },
-      'FLcondo': { type: 'EH1', systemKBtuh: 17 }
+      'Kampen': { type: 'GFM', systemKBtuh: 78, modulationPercent: 40 },
+      'Townhome': { type: 'GF1', systemKBtuh: 101, modulationPercent: null },
+      'FLcondo': { type: 'EH1', systemKBtuh: 17, modulationPercent: null }
     };
 
     const COOL_SITE_CONFIG = {
@@ -2137,7 +2142,20 @@
                                 background: 'rgba(34, 211, 238, 0.1)'
                               }}
                             >
-                              {row.excess_capacity_percent?.toFixed(1) || 'N/A'}
+                              {(() => {
+                                const siteName = row.site_name || 'Unknown';
+                                const config = SITE_CONFIG[siteName] || {};
+                                const excessAtMod = row.excess_capacity_percent;
+                                
+                                // For GFM systems, convert to 100% capacity
+                                if (excessAtMod != null && config.type === 'GFM') {
+                                  const modulationPercent = 40; // Operating at 40% capacity
+                                  const excessAt100 = 100 * ((100 + excessAtMod) / modulationPercent - 1);
+                                  return excessAt100.toFixed(1);
+                                }
+                                // For other systems, show raw value
+                                return excessAtMod != null ? excessAtMod.toFixed(1) : 'N/A';
+                              })()}
                             </td>
                           </tr>
                         );
