@@ -369,10 +369,20 @@
       }
       // Townhome and FLcondo use uniplus2_* columns
       
-      const days = timeRange === '24h' ? 1 : timeRange === '3d' ? 3 : 
-                   timeRange === '7d' ? 7 : 30;
-      const now = new Date().toISOString();
-      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      let days;
+      let startDate;
+      const now = new Date();
+      
+      if (timeRange === 'since2026') {
+        // Since January 1, 2026
+        startDate = new Date('2026-01-01T00:00:00').toISOString();
+      } else {
+        days = timeRange === '24h' ? 1 : timeRange === '3d' ? 3 : 
+              timeRange === '7d' ? 7 : 30;
+        startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      }
+      
+      const nowISO = now.toISOString();
       
       const table = site === 'Kampen' ? 'kampen_readings' : 
                     site === 'Townhome' ? 'townhome_readings' : 'flcondo_readings';
@@ -381,13 +391,13 @@
       let allData = [];
       let offset = 0;
       const batchSize = 1000;
-      const maxRows = days * 480; // Maximum expected rows
+      const maxRows = timeRange === 'since2026' ? 50000 : (days * 480); // Higher limit for since2026
       
-      console.log(`Fetching ${metric} for ${site}: ${days} days (expect ~${maxRows} rows)`);
+      console.log(`Fetching ${metric} for ${site}: ${timeRange} (expect ~${maxRows} rows)`);
       
       while (offset < maxRows) {
         const response = await fetch(
-          `${SUPABASE_URL}/rest/v1/${table}?select=created_at,${actualColumnName}&created_at=gte.${startDate}&created_at=lte.${now}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
+          `${SUPABASE_URL}/rest/v1/${table}?select=created_at,${actualColumnName}&created_at=gte.${startDate}&created_at=lte.${nowISO}&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
           {
             headers: {
               'apikey': SUPABASE_KEY,
@@ -417,22 +427,22 @@
         
         offset += batchSize;
         
-        // Safety limit: stop after 20 batches (20,000 rows)
-        if (offset >= 20000) {
-          console.warn('Reached safety limit of 20,000 rows');
+        // Safety limit: stop after 50 batches (50,000 rows)
+        if (offset >= 50000) {
+          console.warn('Reached safety limit of 50,000 rows');
           break;
         }
       }
       
       console.log(`Total rows fetched: ${allData.length}`);
-      console.log(`Date range: ${startDate} to ${now}`);
+      console.log(`Date range: ${startDate} to ${nowISO}`);
       
       // Reverse to get chronological order (oldest to newest)
       const rawData = allData.reverse();
       
-      // For 30-day view, aggregate to 15-minute intervals
+      // For 30-day view or since2026, aggregate to 15-minute intervals
       let processedData;
-      if (timeRange === '30d') {
+      if (timeRange === '30d' || timeRange === 'since2026') {
         processedData = aggregateData(rawData, actualColumnName);
       } else {
         // Use raw 3-minute data
@@ -1235,7 +1245,7 @@
             <div className="chart-header">
               <h2 className="chart-title">{metric} - {site}</h2>
               <p className="chart-subtitle">
-                Historical trend {timeRange === '30d' ? '(15-min avg)' : '(3-min intervals)'}
+                Historical trend {timeRange === '30d' || timeRange === 'since2026' ? '(15-min avg)' : '(3-min intervals)'}
               </p>
             </div>
 
@@ -1243,13 +1253,17 @@
               <div className="control-group">
                 <label className="control-label">Time Range</label>
                 <div className="time-range-buttons">
-                  {['24h', '3d', '7d', '30d'].map(range => (
+                  {['24h', '3d', '7d', '30d', 'since2026'].map(range => (
                     <button 
                       key={range}
                       className={`time-button ${timeRange === range ? 'active' : ''}`}
                       onClick={() => setTimeRange(range)}
                     >
-                      {range === '24h' ? '24 Hours' : range === '3d' ? '3 Days' : range === '7d' ? '7 Days' : '30 Days'}
+                      {range === '24h' ? '24 Hours' : 
+                       range === '3d' ? '3 Days' : 
+                       range === '7d' ? '7 Days' : 
+                       range === '30d' ? '30 Days' :
+                       'Since 1/1/26'}
                     </button>
                   ))}
                 </div>
