@@ -906,8 +906,8 @@
               
               const rowHeight = 24;
               const padding = 10;
-              const headerHeight = 28;
-              const colWidth = 75;
+              const headerHeight = 40;
+              const colWidth = 65;
               const tableWidth = padding + 70 + colWidth + colWidth + padding;
               const tableHeight = headerHeight + (intercepts.length * rowHeight) + padding;
               
@@ -927,12 +927,13 @@
               ctx.fillRect(tableX, tableY, tableWidth, tableHeight);
               ctx.strokeRect(tableX, tableY, tableWidth, tableHeight);
               
-              // Draw header
+              // Draw main header
               ctx.fillStyle = '#0891b2';
-              ctx.font = 'bold 11px "JetBrains Mono", monospace';
+              ctx.font = 'bold 10px "JetBrains Mono", monospace';
               ctx.textAlign = 'left';
-              ctx.textBaseline = 'middle';
-              ctx.fillText('IATR=0 Balance Point (°F)', tableX + padding, tableY + headerHeight / 2);
+              ctx.textBaseline = 'top';
+              ctx.fillText('IATR=0 Balance', tableX + padding, tableY + 6);
+              ctx.fillText('Point (°F)', tableX + padding, tableY + 18);
               
               // Draw header divider
               ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
@@ -954,12 +955,13 @@
               ctx.lineTo(col2X, tableY + tableHeight);
               ctx.stroke();
               
-              // Draw column headers
+              // Draw column headers (10% | 50%)
               ctx.fillStyle = '#64748b';
-              ctx.font = 'bold 10px "JetBrains Mono", monospace';
+              ctx.font = 'bold 9px "JetBrains Mono", monospace';
               ctx.textAlign = 'center';
-              ctx.fillText('50%', tableX + padding + 70 + colWidth / 2, tableY + headerHeight / 2);
-              ctx.fillText('10%', tableX + padding + 70 + colWidth + colWidth / 2, tableY + headerHeight / 2);
+              ctx.textBaseline = 'middle';
+              ctx.fillText('10%', tableX + padding + 70 + colWidth / 2, tableY + headerHeight - 8);
+              ctx.fillText('50%', tableX + padding + 70 + colWidth + colWidth / 2, tableY + headerHeight - 8);
               
               // Draw data rows
               ctx.font = '10px "JetBrains Mono", monospace';
@@ -971,7 +973,17 @@
                 ctx.textAlign = 'left';
                 ctx.fillText(item.site, tableX + padding, rowY);
                 
-                // Format 50th percentile value
+                // Format 10th percentile value (LEFT column)
+                let displayValue10;
+                if (item.value10 > 150) {
+                  displayValue10 = '> 150';
+                } else if (item.value10 < -150) {
+                  displayValue10 = '< -150';
+                } else {
+                  displayValue10 = `${item.value10.toFixed(0)}`;
+                }
+                
+                // Format 50th percentile value (RIGHT column)
                 let displayValue50 = 'N/A';
                 if (item.value50 !== null && item.value50 !== undefined) {
                   if (item.value50 > 150) {
@@ -983,22 +995,12 @@
                   }
                 }
                 
-                // Format 10th percentile value
-                let displayValue10;
-                if (item.value10 > 150) {
-                  displayValue10 = '> 150';
-                } else if (item.value10 < -150) {
-                  displayValue10 = '< -150';
-                } else {
-                  displayValue10 = `${item.value10.toFixed(0)}`;
-                }
-                
-                // Draw 50th percentile column
+                // Draw 10th percentile column (LEFT)
                 ctx.textAlign = 'center';
-                ctx.fillText(displayValue50, tableX + padding + 70 + colWidth / 2, rowY);
+                ctx.fillText(displayValue10, tableX + padding + 70 + colWidth / 2, rowY);
                 
-                // Draw 10th percentile column
-                ctx.fillText(displayValue10, tableX + padding + 70 + colWidth + colWidth / 2, rowY);
+                // Draw 50th percentile column (RIGHT)
+                ctx.fillText(displayValue50, tableX + padding + 70 + colWidth + colWidth / 2, rowY);
               });
               
               ctx.restore();
