@@ -1044,6 +1044,37 @@
 
         const ctx = chartRef.current.getContext('2d');
         
+        // Calculate appropriate min/max with minimum range constraints
+        const values = chartData.data.map(d => d.value).filter(v => !isNaN(v));
+        const minValue = Math.min(...values);
+        const maxValue = Math.max(...values);
+        const dataRange = maxValue - minValue;
+        
+        let yMin = minValue;
+        let yMax = maxValue;
+        let minRangeConstraint = 0;
+        
+        // Apply metric-specific minimum range constraints
+        if (metric.includes('Heat Rate') || metric.includes('Cool Rate')) {
+          minRangeConstraint = 2; // 2 deg/hr minimum
+        } else if (metric.includes('CFM')) {
+          minRangeConstraint = 100; // 100 CFM/ton minimum
+        } else if (metric.includes('House Air Leakage')) {
+          minRangeConstraint = 1.0; // 1.0 minimum
+        }
+        
+        // Enforce minimum range
+        if (dataRange < minRangeConstraint) {
+          const midpoint = (minValue + maxValue) / 2;
+          yMin = midpoint - (minRangeConstraint / 2);
+          yMax = midpoint + (minRangeConstraint / 2);
+        }
+        
+        // Add small padding to the axis
+        const padding = (yMax - yMin) * 0.05;
+        yMin = yMin - padding;
+        yMax = yMax + padding;
+        
         chartInstance.current = new Chart(ctx, {
           type: 'line',
           data: {
@@ -1114,6 +1145,8 @@
                 }
               },
               y: {
+                min: yMin,
+                max: yMax,
                 grid: {
                   color: 'rgba(148, 163, 184, 0.2)'
                 },
