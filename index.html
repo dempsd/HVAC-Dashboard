@@ -626,6 +626,24 @@
           };
         };
         
+        const calculate50thPercentileRegression = (points, olsRegression) => {
+          if (!olsRegression || points.length < 2) return null;
+          
+          const residuals = points.map(point => {
+            const predicted = olsRegression.slope * point.x + olsRegression.intercept;
+            return point.y - predicted;
+          });
+          
+          residuals.sort((a, b) => a - b);
+          const index = Math.floor(residuals.length * 0.50);
+          const percentile50 = residuals[index];
+          
+          return {
+            slope: olsRegression.slope,
+            intercept: olsRegression.intercept + percentile50
+          };
+        };
+        
         const kampenRegression = calculateLinearRegression(scatterData.kampenPoints);
         const townhomeRegression = calculateLinearRegression(scatterData.townhomePoints);
         const flcondoRegression = calculateLinearRegression(scatterData.flcondoPoints);
@@ -633,6 +651,10 @@
         const kampen10thPercentile = calculate10thPercentileRegression(scatterData.kampenPoints, kampenRegression);
         const townhome10thPercentile = calculate10thPercentileRegression(scatterData.townhomePoints, townhomeRegression);
         const flcondo10thPercentile = calculate10thPercentileRegression(scatterData.flcondoPoints, flcondoRegression);
+        
+        const kampen50thPercentile = calculate50thPercentileRegression(scatterData.kampenPoints, kampenRegression);
+        const townhome50thPercentile = calculate50thPercentileRegression(scatterData.townhomePoints, townhomeRegression);
+        const flcondo50thPercentile = calculate50thPercentileRegression(scatterData.flcondoPoints, flcondoRegression);
         
         const regressionDatasets = [];
         
@@ -860,18 +882,21 @@
               const intercepts = [];
               
               if (kampen10thPercentile && scatterData.kampenPoints.length > 0) {
-                const xIntercept = -kampen10thPercentile.intercept / kampen10thPercentile.slope;
-                intercepts.push({ site: 'Kampen', value: xIntercept, color: '#22d3ee' });
+                const xIntercept10 = -kampen10thPercentile.intercept / kampen10thPercentile.slope;
+                const xIntercept50 = kampen50thPercentile ? -kampen50thPercentile.intercept / kampen50thPercentile.slope : null;
+                intercepts.push({ site: 'Kampen', value10: xIntercept10, value50: xIntercept50, color: '#22d3ee' });
               }
               
               if (townhome10thPercentile && scatterData.townhomePoints.length > 0) {
-                const xIntercept = -townhome10thPercentile.intercept / townhome10thPercentile.slope;
-                intercepts.push({ site: 'Townhome', value: xIntercept, color: '#fbbf24' });
+                const xIntercept10 = -townhome10thPercentile.intercept / townhome10thPercentile.slope;
+                const xIntercept50 = townhome50thPercentile ? -townhome50thPercentile.intercept / townhome50thPercentile.slope : null;
+                intercepts.push({ site: 'Townhome', value10: xIntercept10, value50: xIntercept50, color: '#fbbf24' });
               }
               
               if (flcondo10thPercentile && scatterData.flcondoPoints.length > 0) {
-                const xIntercept = -flcondo10thPercentile.intercept / flcondo10thPercentile.slope;
-                intercepts.push({ site: 'FLcondo', value: xIntercept, color: '#a855f7' });
+                const xIntercept10 = -flcondo10thPercentile.intercept / flcondo10thPercentile.slope;
+                const xIntercept50 = flcondo50thPercentile ? -flcondo50thPercentile.intercept / flcondo50thPercentile.slope : null;
+                intercepts.push({ site: 'FLcondo', value10: xIntercept10, value50: xIntercept50, color: '#a855f7' });
               }
               
               if (intercepts.length === 0) {
@@ -879,10 +904,10 @@
                 return;
               }
               
-              const rowHeight = 24;
+              const rowHeight = 22;
               const padding = 12;
               const headerHeight = 28;
-              const tableWidth = 180;
+              const tableWidth = 220;
               const tableHeight = headerHeight + (intercepts.length * rowHeight) + padding;
               
               let tableX, tableY;
@@ -901,10 +926,10 @@
               ctx.strokeRect(tableX, tableY, tableWidth, tableHeight);
               
               ctx.fillStyle = '#0891b2';
-              ctx.font = 'bold 13px "JetBrains Mono", monospace';
+              ctx.font = 'bold 12px "JetBrains Mono", monospace';
               ctx.textAlign = 'left';
               ctx.textBaseline = 'middle';
-              ctx.fillText('IATR=0 (10th %ile)', tableX + padding, tableY + headerHeight / 2);
+              ctx.fillText('IATR=0 Balance Point', tableX + padding, tableY + headerHeight / 2);
               
               ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
               ctx.lineWidth = 1;
@@ -913,7 +938,7 @@
               ctx.lineTo(tableX + tableWidth, tableY + headerHeight);
               ctx.stroke();
               
-              ctx.font = '12px "JetBrains Mono", monospace';
+              ctx.font = '11px "JetBrains Mono", monospace';
               intercepts.forEach((item, index) => {
                 const rowY = tableY + headerHeight + padding/2 + (index * rowHeight) + rowHeight/2;
                 
@@ -921,17 +946,32 @@
                 ctx.textAlign = 'left';
                 ctx.fillText(item.site, tableX + padding, rowY);
                 
-                let displayValue;
-                if (item.value > 150) {
-                  displayValue = '> 150°F';
-                } else if (item.value < -150) {
-                  displayValue = '< -150°F';
+                // Format 10th percentile value
+                let displayValue10;
+                if (item.value10 > 150) {
+                  displayValue10 = '> 150°F';
+                } else if (item.value10 < -150) {
+                  displayValue10 = '< -150°F';
                 } else {
-                  displayValue = `${item.value.toFixed(0)}°F`;
+                  displayValue10 = `${item.value10.toFixed(0)}°F`;
+                }
+                
+                // Format 50th percentile value
+                let displayValue50 = 'N/A';
+                if (item.value50 !== null && item.value50 !== undefined) {
+                  if (item.value50 > 150) {
+                    displayValue50 = '> 150°F';
+                  } else if (item.value50 < -150) {
+                    displayValue50 = '< -150°F';
+                  } else {
+                    displayValue50 = `${item.value50.toFixed(0)}°F`;
+                  }
                 }
                 
                 ctx.textAlign = 'right';
-                ctx.fillText(displayValue, tableX + tableWidth - padding, rowY);
+                ctx.font = '10px "JetBrains Mono", monospace';
+                ctx.fillText(`10%: ${displayValue10}`, tableX + tableWidth - padding - 5, rowY - 6);
+                ctx.fillText(`50%: ${displayValue50}`, tableX + tableWidth - padding - 5, rowY + 6);
               });
               
               ctx.restore();
