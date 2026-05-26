@@ -904,10 +904,11 @@
                 return;
               }
               
-              const rowHeight = 22;
-              const padding = 12;
+              const rowHeight = 24;
+              const padding = 10;
               const headerHeight = 28;
-              const tableWidth = 220;
+              const colWidth = 75;
+              const tableWidth = padding + 70 + colWidth + colWidth + padding;
               const tableHeight = headerHeight + (intercepts.length * rowHeight) + padding;
               
               let tableX, tableY;
@@ -919,18 +920,21 @@
                 tableY = chart.chartArea.top + 20;
               }
               
+              // Draw table background and border
               ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
               ctx.strokeStyle = '#22d3ee';
               ctx.lineWidth = 2;
               ctx.fillRect(tableX, tableY, tableWidth, tableHeight);
               ctx.strokeRect(tableX, tableY, tableWidth, tableHeight);
               
+              // Draw header
               ctx.fillStyle = '#0891b2';
-              ctx.font = 'bold 12px "JetBrains Mono", monospace';
+              ctx.font = 'bold 11px "JetBrains Mono", monospace';
               ctx.textAlign = 'left';
               ctx.textBaseline = 'middle';
-              ctx.fillText('IATR=0 Balance Point', tableX + padding, tableY + headerHeight / 2);
+              ctx.fillText('IATR=0 Balance Point (°F)', tableX + padding, tableY + headerHeight / 2);
               
+              // Draw header divider
               ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
               ctx.lineWidth = 1;
               ctx.beginPath();
@@ -938,40 +942,63 @@
               ctx.lineTo(tableX + tableWidth, tableY + headerHeight);
               ctx.stroke();
               
-              ctx.font = '11px "JetBrains Mono", monospace';
+              // Draw column dividers
+              const col1X = tableX + padding + 70;
+              const col2X = tableX + padding + 70 + colWidth;
+              ctx.beginPath();
+              ctx.moveTo(col1X, tableY + headerHeight);
+              ctx.lineTo(col1X, tableY + tableHeight);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(col2X, tableY + headerHeight);
+              ctx.lineTo(col2X, tableY + tableHeight);
+              ctx.stroke();
+              
+              // Draw column headers
+              ctx.fillStyle = '#64748b';
+              ctx.font = 'bold 10px "JetBrains Mono", monospace';
+              ctx.textAlign = 'center';
+              ctx.fillText('50%', tableX + padding + 70 + colWidth / 2, tableY + headerHeight / 2);
+              ctx.fillText('10%', tableX + padding + 70 + colWidth + colWidth / 2, tableY + headerHeight / 2);
+              
+              // Draw data rows
+              ctx.font = '10px "JetBrains Mono", monospace';
               intercepts.forEach((item, index) => {
-                const rowY = tableY + headerHeight + padding/2 + (index * rowHeight) + rowHeight/2;
+                const rowY = tableY + headerHeight + (index * rowHeight) + rowHeight / 2;
                 
+                // Site name
                 ctx.fillStyle = item.color;
                 ctx.textAlign = 'left';
                 ctx.fillText(item.site, tableX + padding, rowY);
-                
-                // Format 10th percentile value
-                let displayValue10;
-                if (item.value10 > 150) {
-                  displayValue10 = '> 150°F';
-                } else if (item.value10 < -150) {
-                  displayValue10 = '< -150°F';
-                } else {
-                  displayValue10 = `${item.value10.toFixed(0)}°F`;
-                }
                 
                 // Format 50th percentile value
                 let displayValue50 = 'N/A';
                 if (item.value50 !== null && item.value50 !== undefined) {
                   if (item.value50 > 150) {
-                    displayValue50 = '> 150°F';
+                    displayValue50 = '> 150';
                   } else if (item.value50 < -150) {
-                    displayValue50 = '< -150°F';
+                    displayValue50 = '< -150';
                   } else {
-                    displayValue50 = `${item.value50.toFixed(0)}°F`;
+                    displayValue50 = `${item.value50.toFixed(0)}`;
                   }
                 }
                 
-                ctx.textAlign = 'right';
-                ctx.font = '10px "JetBrains Mono", monospace';
-                ctx.fillText(`10%: ${displayValue10}`, tableX + tableWidth - padding - 5, rowY - 6);
-                ctx.fillText(`50%: ${displayValue50}`, tableX + tableWidth - padding - 5, rowY + 6);
+                // Format 10th percentile value
+                let displayValue10;
+                if (item.value10 > 150) {
+                  displayValue10 = '> 150';
+                } else if (item.value10 < -150) {
+                  displayValue10 = '< -150';
+                } else {
+                  displayValue10 = `${item.value10.toFixed(0)}`;
+                }
+                
+                // Draw 50th percentile column
+                ctx.textAlign = 'center';
+                ctx.fillText(displayValue50, tableX + padding + 70 + colWidth / 2, rowY);
+                
+                // Draw 10th percentile column
+                ctx.fillText(displayValue10, tableX + padding + 70 + colWidth + colWidth / 2, rowY);
               });
               
               ctx.restore();
