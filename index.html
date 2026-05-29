@@ -8,6 +8,7 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
@@ -906,8 +907,8 @@
               
               const rowHeight = 24;
               const padding = 10;
-              const headerHeight = 40;
-              const colWidth = 65;
+              const headerHeight = 28;
+              const colWidth = 75;
               const tableWidth = padding + 70 + colWidth + colWidth + padding;
               const tableHeight = headerHeight + (intercepts.length * rowHeight) + padding;
               
@@ -927,13 +928,12 @@
               ctx.fillRect(tableX, tableY, tableWidth, tableHeight);
               ctx.strokeRect(tableX, tableY, tableWidth, tableHeight);
               
-              // Draw main header
+              // Draw header
               ctx.fillStyle = '#0891b2';
-              ctx.font = 'bold 10px "JetBrains Mono", monospace';
+              ctx.font = 'bold 11px "JetBrains Mono", monospace';
               ctx.textAlign = 'left';
-              ctx.textBaseline = 'top';
-              ctx.fillText('IATR=0 Balance', tableX + padding, tableY + 6);
-              ctx.fillText('Point (°F)', tableX + padding, tableY + 18);
+              ctx.textBaseline = 'middle';
+              ctx.fillText('IATR=0 Balance Point (°F)', tableX + padding, tableY + headerHeight / 2);
               
               // Draw header divider
               ctx.strokeStyle = 'rgba(34, 211, 238, 0.3)';
@@ -955,13 +955,12 @@
               ctx.lineTo(col2X, tableY + tableHeight);
               ctx.stroke();
               
-              // Draw column headers (10% | 50%)
+              // Draw column headers
               ctx.fillStyle = '#64748b';
-              ctx.font = 'bold 9px "JetBrains Mono", monospace';
+              ctx.font = 'bold 10px "JetBrains Mono", monospace';
               ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText('10%', tableX + padding + 70 + colWidth / 2, tableY + headerHeight - 8);
-              ctx.fillText('50%', tableX + padding + 70 + colWidth + colWidth / 2, tableY + headerHeight - 8);
+              ctx.fillText('50%', tableX + padding + 70 + colWidth / 2, tableY + headerHeight / 2);
+              ctx.fillText('10%', tableX + padding + 70 + colWidth + colWidth / 2, tableY + headerHeight / 2);
               
               // Draw data rows
               ctx.font = '10px "JetBrains Mono", monospace';
@@ -973,17 +972,7 @@
                 ctx.textAlign = 'left';
                 ctx.fillText(item.site, tableX + padding, rowY);
                 
-                // Format 10th percentile value (LEFT column)
-                let displayValue10;
-                if (item.value10 > 150) {
-                  displayValue10 = '> 150';
-                } else if (item.value10 < -150) {
-                  displayValue10 = '< -150';
-                } else {
-                  displayValue10 = `${item.value10.toFixed(0)}`;
-                }
-                
-                // Format 50th percentile value (RIGHT column)
+                // Format 50th percentile value
                 let displayValue50 = 'N/A';
                 if (item.value50 !== null && item.value50 !== undefined) {
                   if (item.value50 > 150) {
@@ -995,12 +984,22 @@
                   }
                 }
                 
-                // Draw 10th percentile column (LEFT)
-                ctx.textAlign = 'center';
-                ctx.fillText(displayValue10, tableX + padding + 70 + colWidth / 2, rowY);
+                // Format 10th percentile value
+                let displayValue10;
+                if (item.value10 > 150) {
+                  displayValue10 = '> 150';
+                } else if (item.value10 < -150) {
+                  displayValue10 = '< -150';
+                } else {
+                  displayValue10 = `${item.value10.toFixed(0)}`;
+                }
                 
-                // Draw 50th percentile column (RIGHT)
-                ctx.fillText(displayValue50, tableX + padding + 70 + colWidth + colWidth / 2, rowY);
+                // Draw 50th percentile column
+                ctx.textAlign = 'center';
+                ctx.fillText(displayValue50, tableX + padding + 70 + colWidth / 2, rowY);
+                
+                // Draw 10th percentile column
+                ctx.fillText(displayValue10, tableX + padding + 70 + colWidth + colWidth / 2, rowY);
               });
               
               ctx.restore();
@@ -1072,6 +1071,244 @@
               <div className="error-message">
                 No data available.
               </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const AirLeakageModal = ({ onClose }) => {
+      const [timeRange, setTimeRange] = useState('7d');
+      const [chartData, setChartData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      const SITE_COLORS = {
+        Kampen:   { border: '#22d3ee', bg: 'rgba(34, 211, 238, 0.15)' },
+        Townhome: { border: '#fbbf24', bg: 'rgba(251, 191, 36, 0.15)' },
+        FLcondo:  { border: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)' }
+      };
+
+      const fetchLeakageForSite = async (table, siteName) => {
+        let days, startDate;
+        const now = new Date();
+
+        if (timeRange === 'since2026') {
+          startDate = new Date('2026-01-01T00:00:00').toISOString();
+        } else {
+          days = timeRange === '24h' ? 1 : timeRange === '3d' ? 3 : timeRange === '7d' ? 7 : 30;
+          startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        }
+
+        const nowISO = now.toISOString();
+        const maxRows = timeRange === 'since2026' ? 50000 : (days * 480);
+        const batchSize = 1000;
+        let allData = [];
+        let offset = 0;
+
+        while (offset < maxRows) {
+          const response = await fetch(
+            `${SUPABASE_URL}/rest/v1/${table}?select=created_at,leakage_slope_normalized&created_at=gte.${startDate}&created_at=lte.${nowISO}&leakage_slope_normalized=not.is.null&order=created_at.asc&limit=${batchSize}&offset=${offset}`,
+            { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+          );
+          if (!response.ok) throw new Error(`Failed to fetch ${siteName}: ${response.statusText}`);
+          const batch = await response.json();
+          if (batch.length === 0) break;
+          allData = allData.concat(batch);
+          if (batch.length < batchSize) break;
+          offset += batchSize;
+          if (offset >= 50000) break;
+        }
+
+        // Aggregate to 15-min buckets for 30d / since2026
+        if (timeRange === '30d' || timeRange === 'since2026') {
+          return aggregateData(allData, 'leakage_slope_normalized').map(d => ({
+            timestamp: d.timestamp,
+            value: d.value
+          }));
+        }
+
+        return allData
+          .filter(r => r.leakage_slope_normalized !== null && r.leakage_slope_normalized !== undefined)
+          .map(r => ({ timestamp: new Date(r.created_at), value: parseFloat(r.leakage_slope_normalized) }));
+      };
+
+      useEffect(() => {
+        const loadAll = async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const [kampen, townhome, flcondo] = await Promise.all([
+              fetchLeakageForSite('kampen_readings', 'Kampen'),
+              fetchLeakageForSite('townhome_readings', 'Townhome'),
+              fetchLeakageForSite('flcondo_readings', 'FLcondo')
+            ]);
+            setChartData({ kampen, townhome, flcondo });
+          } catch (err) {
+            setError(err.message);
+          } finally {
+            setLoading(false);
+          }
+        };
+        loadAll();
+      }, [timeRange]);
+
+      useEffect(() => {
+        if (!chartData || !chartRef.current || loading) return;
+
+        if (chartInstance.current) chartInstance.current.destroy();
+
+        const ctx = chartRef.current.getContext('2d');
+
+        const makeDataset = (points, siteName) => {
+          const col = SITE_COLORS[siteName];
+          return {
+            label: siteName,
+            data: points.map(d => ({ x: d.timestamp, y: d.value })),
+            borderColor: col.border,
+            backgroundColor: col.bg,
+            borderWidth: 2,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: col.border,
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2
+          };
+        };
+
+        chartInstance.current = new Chart(ctx, {
+          type: 'line',
+          data: {
+            datasets: [
+              makeDataset(chartData.kampen, 'Kampen'),
+              makeDataset(chartData.townhome, 'Townhome'),
+              makeDataset(chartData.flcondo, 'FLcondo')
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+              legend: {
+                display: true,
+                labels: { color: '#334155', font: { size: 13, family: '"JetBrains Mono", monospace' } }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(255,255,255,0.97)',
+                titleColor: '#0891b2',
+                bodyColor: '#334155',
+                borderColor: '#22d3ee',
+                borderWidth: 1,
+                padding: 12,
+                callbacks: {
+                  title: (items) => {
+                    const d = items[0]?.raw?.x;
+                    return d ? new Date(d).toLocaleString() : '';
+                  },
+                  label: (item) => `${item.dataset.label}: ${item.parsed.y.toFixed(3)}`
+                }
+              }
+            },
+            scales: {
+              x: {
+                type: 'time',
+                time: {
+                  unit: timeRange === '24h' ? 'hour' : timeRange === '3d' ? 'hour' : 'day',
+                  displayFormats: { hour: 'M/d h:mm a', day: 'M/d' }
+                },
+                grid: { color: 'rgba(148,163,184,0.2)' },
+                ticks: { color: '#64748b', maxTicksLimit: 8 }
+              },
+              y: {
+                title: { display: true, text: 'Air Leakage (leakage_slope_normalized)', color: '#0891b2', font: { size: 12, weight: 'bold' } },
+                grid: { color: 'rgba(148,163,184,0.2)' },
+                ticks: { color: '#64748b', callback: (v) => v.toFixed(2) }
+              }
+            }
+          }
+        });
+
+        return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+      }, [chartData, loading, timeRange]);
+
+      const totalPoints = chartData ? (chartData.kampen.length + chartData.townhome.length + chartData.flcondo.length) : 0;
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="close-button" onClick={onClose}>×</button>
+
+            <div className="chart-header">
+              <h2 className="chart-title">Air Leakage — All Sites</h2>
+              <p className="chart-subtitle">
+                Normalized leakage slope over time for Kampen, Townhome, and FLcondo
+                {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
+              </p>
+            </div>
+
+            <div className="controls">
+              <div className="control-group">
+                <label className="control-label">Time Range</label>
+                <div className="time-range-buttons">
+                  {['24h', '3d', '7d', '30d', 'since2026'].map(range => (
+                    <button
+                      key={range}
+                      className={`time-button ${timeRange === range ? 'active' : ''}`}
+                      onClick={() => setTimeRange(range)}
+                    >
+                      {range === '24h' ? '24 Hours' : range === '3d' ? '3 Days' : range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : 'Since 1/1/26'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="loading-spinner">
+                <div className="spinner"></div>
+                <div>Loading air leakage data...</div>
+              </div>
+            ) : error ? (
+              <div className="error-message"><strong>Error:</strong> {error}</div>
+            ) : chartData ? (
+              <>
+                <div className="stats-grid">
+                  <div className="stat-card">
+                    <div className="stat-label">Total Points</div>
+                    <div className="stat-value">{totalPoints}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Kampen</div>
+                    <div className="stat-value" style={{ color: '#22d3ee' }}>{chartData.kampen.length}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Townhome</div>
+                    <div className="stat-value" style={{ color: '#fbbf24' }}>{chartData.townhome.length}</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">FLcondo</div>
+                    <div className="stat-value" style={{ color: '#a855f7' }}>{chartData.flcondo.length}</div>
+                  </div>
+                </div>
+
+                <div className="chart-container">
+                  <canvas ref={chartRef}></canvas>
+                </div>
+
+                <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34,211,238,0.1)', borderRadius: '8px' }}>
+                  <p style={{ color: '#475569', fontSize: '0.875rem', margin: 0 }}>
+                    <strong style={{ color: '#0891b2' }}>Note:</strong> Air leakage is measured as the normalized humidity-based slope during unoccupied infiltration episodes.
+                    Higher values indicate more air exchange with the outside. Compare sites on the same time axis to identify seasonal trends or anomalies.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="error-message">No data available.</div>
             )}
           </div>
         </div>
@@ -1359,6 +1596,7 @@
       const [countdown, setCountdown] = useState(180);
       const [selectedChart, setSelectedChart] = useState(null);
       const [showScatterPlot, setShowScatterPlot] = useState(null);
+      const [showAirLeakage, setShowAirLeakage] = useState(false);
       const [sortColumn, setSortColumn] = useState(null);
       const [sortDirection, setSortDirection] = useState('asc');
       const [activeTab, setActiveTab] = useState('heating');
@@ -1804,6 +2042,30 @@
                   
                   {activeTab === 'heating' && (
                     <button
+                      onClick={() => setShowAirLeakage(true)}
+                      style={{
+                        background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '0.5rem 1rem',
+                        color: 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                    >
+                      🏠 Air Leakage — All Sites
+                    </button>
+                  )}
+
+                  {activeTab === 'heating' && (
+                    <button
                       onClick={() => setShowScatterPlot('heating')}
                       style={{
                         background: 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
@@ -1826,6 +2088,30 @@
                     </button>
                   )}
                   
+                  {activeTab === 'cooling' && (
+                    <button
+                      onClick={() => setShowAirLeakage(true)}
+                      style={{
+                        background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '0.5rem 1rem',
+                        color: 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.875rem',
+                        fontWeight: 500,
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                    >
+                      🏠 Air Leakage — All Sites
+                    </button>
+                  )}
+
                   {activeTab === 'cooling' && (
                     <button
                       onClick={() => setShowScatterPlot('cooling')}
@@ -2673,6 +2959,12 @@
             <ScatterPlotModal 
               mode={showScatterPlot}
               onClose={() => setShowScatterPlot(null)}
+            />
+          )}
+
+          {showAirLeakage && (
+            <AirLeakageModal 
+              onClose={() => setShowAirLeakage(false)}
             />
           )}
         </div>
