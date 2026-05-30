@@ -1989,72 +1989,65 @@
                 
                 <div style={{
                   display: 'flex',
-                  flexDirection: 'column',
                   gap: '0.5rem',
                   marginLeft: 'auto',
-                  alignItems: 'flex-end'
+                  alignItems: 'center'
                 }}>
-                  {/* Top row: Pause + Refresh */}
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      onClick={togglePause}
-                      style={{
-                        background: isPaused ? '#22d3ee' : '#f1f5f9',
-                        border: isPaused ? 'none' : '2px solid #cbd5e1',
-                        borderRadius: '8px',
-                        padding: '0.5rem 1rem',
-                        color: isPaused ? 'white' : '#334155',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                    >
-                      {isPaused ? <Play size={16} /> : <Pause size={16} />}
-                      {isPaused ? 'Resume' : 'Pause'}
-                    </button>
+                  <button
+                    onClick={togglePause}
+                    style={{
+                      background: isPaused ? '#22d3ee' : '#f1f5f9',
+                      border: isPaused ? 'none' : '2px solid #cbd5e1',
+                      borderRadius: '8px',
+                      padding: '0.5rem 1rem',
+                      color: isPaused ? 'white' : '#334155',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    {isPaused ? <Play size={16} /> : <Pause size={16} />}
+                    {isPaused ? 'Resume' : 'Pause'}
+                  </button>
+                  
+                  <button
+                    onClick={handleManualRefresh}
+                    disabled={loading}
+                    style={{
+                      background: '#22c55e',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '0.5rem 1rem',
+                      color: 'white',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      opacity: loading ? 0.6 : 1,
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => !loading && (e.target.style.transform = 'scale(1.05)')}
+                    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                  >
+                    <RefreshCw size={16} className={loading ? 'spinning' : ''} />
+                    Refresh Now
+                  </button>
 
-                    <button
-                      onClick={handleManualRefresh}
-                      disabled={loading}
-                      style={{
-                        background: '#22c55e',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '0.5rem 1rem',
-                        color: 'white',
-                        cursor: loading ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 500,
-                        opacity: loading ? 0.6 : 1,
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => !loading && (e.target.style.transform = 'scale(1.05)')}
-                      onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                    >
-                      <RefreshCw size={16} className={loading ? 'spinning' : ''} />
-                      Refresh Now
-                    </button>
-                  </div>
-
-                  {/* Bottom row: Air Leakage (above) then Rate vs OAT */}
-                  {(activeTab === 'heating' || activeTab === 'cooling') && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'stretch' }}>
-                      {/* Air Leakage button — matches the tab color */}
+                  {/* Air Leakage + Rate vs OAT stacked vertically */}
+                  {activeTab === 'heating' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <button
                         onClick={() => setShowAirLeakage(true)}
                         style={{
-                          background: activeTab === 'heating'
-                            ? 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)'
-                            : 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                          background: 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
                           border: 'none',
                           borderRadius: '8px',
                           padding: '0.5rem 1rem',
@@ -2072,55 +2065,74 @@
                       >
                         🏠 Air Leakage — All Sites
                       </button>
+                      <button
+                        onClick={() => setShowScatterPlot('heating')}
+                        style={{
+                          background: 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.5rem 1rem',
+                          color: 'white',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      >
+                        📈 Heat Rate vs Outdoor Temp
+                      </button>
+                    </div>
+                  )}
 
-                      {/* Rate vs OAT scatter button */}
-                      {activeTab === 'heating' && (
-                        <button
-                          onClick={() => setShowScatterPlot('heating')}
-                          style={{
-                            background: 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '0.5rem 1rem',
-                            color: 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                        >
-                          📈 Heat Rate vs Outdoor Temp
-                        </button>
-                      )}
-
-                      {activeTab === 'cooling' && (
-                        <button
-                          onClick={() => setShowScatterPlot('cooling')}
-                          style={{
-                            background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '0.5rem 1rem',
-                            color: 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontSize: '0.875rem',
-                            fontWeight: 500,
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                        >
-                          📉 Cool Rate vs Outdoor Temp
-                        </button>
-                      )}
+                  {activeTab === 'cooling' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => setShowAirLeakage(true)}
+                        style={{
+                          background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.5rem 1rem',
+                          color: 'white',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      >
+                        🏠 Air Leakage — All Sites
+                      </button>
+                      <button
+                        onClick={() => setShowScatterPlot('cooling')}
+                        style={{
+                          background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.5rem 1rem',
+                          color: 'white',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      >
+                        📉 Cool Rate vs Outdoor Temp
+                      </button>
                     </div>
                   )}
                 </div>
