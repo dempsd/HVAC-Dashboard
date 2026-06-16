@@ -1091,23 +1091,20 @@
         FLcondo:  { border: '#a855f7', bg: 'rgba(168, 85, 247, 0.15)' }
       };
 
-      const fetchLeakageForSite = async (table, siteName) => {
+      const fetchLeakageForSite = async (table, siteName, tr) => {
         let days, startDate;
         const now = new Date();
-
-        if (timeRange === 'since2026') {
+        if (tr === 'since2026') {
           startDate = new Date('2026-01-01T00:00:00').toISOString();
         } else {
-          days = timeRange === '24h' ? 1 : timeRange === '3d' ? 3 : timeRange === '7d' ? 7 : 30;
+          days = tr === '24h' ? 1 : tr === '3d' ? 3 : tr === '7d' ? 7 : 30;
           startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
         }
-
         const nowISO = now.toISOString();
-        const maxRows = timeRange === 'since2026' ? 50000 : (days * 480);
+        const maxRows = tr === 'since2026' ? 50000 : (days * 480);
         const batchSize = 1000;
         let allData = [];
         let offset = 0;
-
         while (offset < maxRows) {
           const response = await fetch(
             `${SUPABASE_URL}/rest/v1/${table}?select=created_at,leakage_slope_normalized&created_at=gte.${startDate}&created_at=lte.${nowISO}&leakage_slope_normalized=not.is.null&order=created_at.asc&limit=${batchSize}&offset=${offset}`,
@@ -1121,15 +1118,11 @@
           offset += batchSize;
           if (offset >= 50000) break;
         }
-
-        // Aggregate to 15-min buckets for 30d / since2026
-        if (timeRange === '30d' || timeRange === 'since2026') {
+        if (tr === '30d' || tr === 'since2026') {
           return aggregateData(allData, 'leakage_slope_normalized').map(d => ({
-            timestamp: d.timestamp,
-            value: d.value
+            timestamp: d.timestamp, value: d.value
           }));
         }
-
         return allData
           .filter(r => r.leakage_slope_normalized !== null && r.leakage_slope_normalized !== undefined)
           .map(r => ({ timestamp: new Date(r.created_at), value: parseFloat(r.leakage_slope_normalized) }));
@@ -1141,9 +1134,9 @@
           setError(null);
           try {
             const [kampen, townhome, flcondo] = await Promise.all([
-              fetchLeakageForSite('kampen_readings', 'Kampen'),
-              fetchLeakageForSite('townhome_readings', 'Townhome'),
-              fetchLeakageForSite('flcondo_readings', 'FLcondo')
+              fetchLeakageForSite('kampen_readings', 'Kampen', timeRange),
+              fetchLeakageForSite('townhome_readings', 'Townhome', timeRange),
+              fetchLeakageForSite('flcondo_readings', 'FLcondo', timeRange)
             ]);
             setChartData({ kampen, townhome, flcondo });
           } catch (err) {
@@ -1157,11 +1150,8 @@
 
       useEffect(() => {
         if (!chartData || !chartRef.current || loading) return;
-
         if (chartInstance.current) chartInstance.current.destroy();
-
         const ctx = chartRef.current.getContext('2d');
-
         const makeDataset = (points, siteName) => {
           const col = SITE_COLORS[siteName];
           return {
@@ -1179,7 +1169,6 @@
             pointHoverBorderWidth: 2
           };
         };
-
         chartInstance.current = new Chart(ctx, {
           type: 'line',
           data: {
@@ -1207,7 +1196,7 @@
                 padding: 12,
                 callbacks: {
                   title: (items) => {
-                    const d = items[0]?.raw?.x;
+                    const d = items[0] && items[0].raw && items[0].raw.x;
                     return d ? new Date(d).toLocaleString() : '';
                   },
                   label: (item) => `${item.dataset.label}: ${item.parsed.y.toFixed(3)}`
@@ -1225,14 +1214,13 @@
                 ticks: { color: '#64748b', maxTicksLimit: 8 }
               },
               y: {
-                title: { display: true, text: 'Air Leakage (leakage_slope_normalized)', color: '#0891b2', font: { size: 12, weight: 'bold' } },
+                title: { display: true, text: 'Air Leakage (normalized)', color: '#0891b2', font: { size: 12, weight: 'bold' } },
                 grid: { color: 'rgba(148,163,184,0.2)' },
                 ticks: { color: '#64748b', callback: (v) => v.toFixed(2) }
               }
             }
           }
         });
-
         return () => { if (chartInstance.current) chartInstance.current.destroy(); };
       }, [chartData, loading, timeRange]);
 
@@ -1242,7 +1230,6 @@
         <div className="modal-overlay" onClick={onClose}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="close-button" onClick={onClose}>×</button>
-
             <div className="chart-header">
               <h2 className="chart-title">Air Leakage — All Sites</h2>
               <p className="chart-subtitle">
@@ -1250,7 +1237,6 @@
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
               </p>
             </div>
-
             <div className="controls">
               <div className="control-group">
                 <label className="control-label">Time Range</label>
@@ -1267,7 +1253,6 @@
                 </div>
               </div>
             </div>
-
             {loading ? (
               <div className="loading-spinner">
                 <div className="spinner"></div>
@@ -1276,7 +1261,7 @@
             ) : error ? (
               <div className="error-message"><strong>Error:</strong> {error}</div>
             ) : chartData ? (
-              <>
+              <div>
                 <div className="stats-grid">
                   <div className="stat-card">
                     <div className="stat-label">Total Points</div>
@@ -1295,18 +1280,15 @@
                     <div className="stat-value" style={{ color: '#a855f7' }}>{chartData.flcondo.length}</div>
                   </div>
                 </div>
-
                 <div className="chart-container">
                   <canvas ref={chartRef}></canvas>
                 </div>
-
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34,211,238,0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#475569', fontSize: '0.875rem', margin: 0 }}>
-                    <strong style={{ color: '#0891b2' }}>Note:</strong> Air leakage is measured as the normalized humidity-based slope during unoccupied infiltration episodes.
-                    Higher values indicate more air exchange with the outside. Compare sites on the same time axis to identify seasonal trends or anomalies.
+                    <strong style={{ color: '#0891b2' }}>Note:</strong> Air leakage is the normalized humidity-based slope during infiltration episodes. Higher values indicate more air exchange with outside.
                   </p>
                 </div>
-              </>
+              </div>
             ) : (
               <div className="error-message">No data available.</div>
             )}
@@ -2041,7 +2023,6 @@
                     Refresh Now
                   </button>
 
-                  {/* Air Leakage + Rate vs OAT stacked vertically */}
                   {activeTab === 'heating' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <button
@@ -2963,7 +2944,7 @@
           )}
 
           {showAirLeakage && (
-            <AirLeakageModal 
+            <AirLeakageModal
               onClose={() => setShowAirLeakage(false)}
             />
           )}
