@@ -8,7 +8,6 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
@@ -1152,30 +1151,48 @@
         if (!chartData || !chartRef.current || loading) return;
         if (chartInstance.current) chartInstance.current.destroy();
         const ctx = chartRef.current.getContext('2d');
-        const makeDataset = (points, siteName) => {
-          const col = SITE_COLORS[siteName];
-          return {
-            label: siteName,
-            data: points.map(d => ({ x: d.timestamp, y: d.value })),
-            borderColor: col.border,
-            backgroundColor: col.bg,
-            borderWidth: 2,
-            fill: false,
-            tension: 0.3,
-            pointRadius: 0,
-            pointHoverRadius: 5,
-            pointHoverBackgroundColor: col.border,
-            pointHoverBorderColor: '#fff',
-            pointHoverBorderWidth: 2
-          };
-        };
         chartInstance.current = new Chart(ctx, {
           type: 'line',
           data: {
+            labels: chartData.kampen.length >= chartData.townhome.length && chartData.kampen.length >= chartData.flcondo.length
+              ? chartData.kampen.map((_, i) => i)
+              : chartData.townhome.length >= chartData.flcondo.length
+              ? chartData.townhome.map((_, i) => i)
+              : chartData.flcondo.map((_, i) => i),
             datasets: [
-              makeDataset(chartData.kampen, 'Kampen'),
-              makeDataset(chartData.townhome, 'Townhome'),
-              makeDataset(chartData.flcondo, 'FLcondo')
+              {
+                label: 'Kampen',
+                data: chartData.kampen.map(d => d.value),
+                borderColor: '#22d3ee',
+                backgroundColor: 'rgba(34, 211, 238, 0.15)',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 5
+              },
+              {
+                label: 'Townhome',
+                data: chartData.townhome.map(d => d.value),
+                borderColor: '#fbbf24',
+                backgroundColor: 'rgba(251, 191, 36, 0.15)',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 5
+              },
+              {
+                label: 'FLcondo',
+                data: chartData.flcondo.map(d => d.value),
+                borderColor: '#a855f7',
+                backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHoverRadius: 5
+              }
             ]
           },
           options: {
@@ -1196,22 +1213,39 @@
                 padding: 12,
                 callbacks: {
                   title: (items) => {
-                    const d = items[0] && items[0].raw && items[0].raw.x;
-                    return d ? new Date(d).toLocaleString() : '';
+                    const idx = items[0]?.dataIndex;
+                    const datasets = [chartData.kampen, chartData.townhome, chartData.flcondo];
+                    for (const ds of datasets) {
+                      if (ds[idx]) return new Date(ds[idx].timestamp).toLocaleString();
+                    }
+                    return '';
                   },
-                  label: (item) => `${item.dataset.label}: ${item.parsed.y.toFixed(3)}`
+                  label: (item) => {
+                    const v = item.parsed.y;
+                    return v != null ? `${item.dataset.label}: ${v.toFixed(3)}` : null;
+                  }
                 }
               }
             },
             scales: {
               x: {
-                type: 'time',
-                time: {
-                  unit: timeRange === '24h' ? 'hour' : timeRange === '3d' ? 'hour' : 'day',
-                  displayFormats: { hour: 'M/d h:mm a', day: 'M/d' }
-                },
                 grid: { color: 'rgba(148,163,184,0.2)' },
-                ticks: { color: '#64748b', maxTicksLimit: 8 }
+                ticks: {
+                  color: '#64748b',
+                  maxTicksLimit: 8,
+                  callback: function(value, index) {
+                    const datasets = [chartData.kampen, chartData.townhome, chartData.flcondo];
+                    for (const ds of datasets) {
+                      if (ds[index]) {
+                        const d = new Date(ds[index].timestamp);
+                        return timeRange === '24h'
+                          ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                          : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                      }
+                    }
+                    return '';
+                  }
+                }
               },
               y: {
                 title: { display: true, text: 'Air Leakage (normalized)', color: '#0891b2', font: { size: 12, weight: 'bold' } },
