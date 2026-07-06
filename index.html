@@ -275,7 +275,7 @@
       'Heat Cycle': 'avg_heat_cycle',
       'Current Heat Rate': 'heat_iatr_meas_daily',
       'Heat Rate @ Design': 'heat_iatr_adjust_daily',
-      'House Air Leakage': 'leakage_slope_normalized',
+      'House Air Leakage': 'leakage_factor_average',
       'Cool Run Hours': 'cool_hrs',
       'Cool ON/OFF Cycles': 'cool_cycles',
       'Cool Cycle': 'avg_cool_cycle',
@@ -1091,6 +1091,7 @@
       };
 
       const fetchLeakageForSite = async (table, siteName, tr) => {
+        const col = 'leakage_factor_average';
         let days, startDate;
         const now = new Date();
         if (tr === 'since2026') {
@@ -1106,7 +1107,7 @@
         let offset = 0;
         while (offset < maxRows) {
           const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/${table}?select=created_at,leakage_slope_normalized&created_at=gte.${startDate}&created_at=lte.${nowISO}&leakage_slope_normalized=not.is.null&order=created_at.asc&limit=${batchSize}&offset=${offset}`,
+            `${SUPABASE_URL}/rest/v1/${table}?select=created_at,${col}&created_at=gte.${startDate}&created_at=lte.${nowISO}&${col}=not.is.null&order=created_at.asc&limit=${batchSize}&offset=${offset}`,
             { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
           );
           if (!response.ok) throw new Error(`Failed to fetch ${siteName}: ${response.statusText}`);
@@ -1118,13 +1119,13 @@
           if (offset >= 50000) break;
         }
         if (tr === '30d' || tr === 'since2026') {
-          return aggregateData(allData, 'leakage_slope_normalized').map(d => ({
+          return aggregateData(allData, col).map(d => ({
             timestamp: d.timestamp, value: d.value
           }));
         }
         return allData
-          .filter(r => r.leakage_slope_normalized !== null && r.leakage_slope_normalized !== undefined)
-          .map(r => ({ timestamp: new Date(r.created_at), value: parseFloat(r.leakage_slope_normalized) }));
+          .filter(r => r[col] !== null && r[col] !== undefined)
+          .map(r => ({ timestamp: new Date(r.created_at), value: parseFloat(r[col]) }));
       };
 
       useEffect(() => {
@@ -1635,7 +1636,7 @@
         'Flags Prior Week': 'heat_flag_counter',
         'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_daily',
         'Cool Rate @ Design (°F/hr)': 'cool_iatr_adjust_weekly',
-        'House Air Leakage': 'leakage_slope_normalized',
+        'House Air Leakage': 'leakage_factor_average',
         'Excess Capacity (%)': 'excess_capacity_percent'
       };
 
@@ -2449,7 +2450,7 @@
                               }}
                               onClick={() => handleCellClick('House Air Leakage', siteName)}
                             >
-                              {row.leakage_slope_normalized?.toFixed(2) || 'N/A'}
+                              {row.leakage_factor_average?.toFixed(2) || 'N/A'}
                             </td>
                             <td 
                               style={{
@@ -2773,7 +2774,7 @@
                               }}
                               onClick={() => handleCellClick('House Air Leakage', siteName)}
                             >
-                              {row.leakage_slope_normalized?.toFixed(2) || 'N/A'}
+                              {row.leakage_factor_average?.toFixed(2) || 'N/A'}
                             </td>
                             <td 
                               style={{
