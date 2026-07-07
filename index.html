@@ -1700,7 +1700,7 @@
       const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-          const [kampenRes, townhomeRes, flcondoRes, kampenExcessRes, townhomeExcessRes] = await Promise.all([
+          const [kampenRes, townhomeRes, flcondoRes, kampenExcessRes, townhomeExcessRes, kampenLeakRes, townhomeLeakRes, flcondoLeakRes] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/kampen_readings?select=*&order=created_at.desc`, {
               headers: {
                 'apikey': SUPABASE_KEY,
@@ -1730,6 +1730,24 @@
                 'apikey': SUPABASE_KEY,
                 'Authorization': `Bearer ${SUPABASE_KEY}`
               }
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/kampen_readings?select=leakage_factor_average&leakage_factor_average=not.is.null&order=created_at.desc&limit=1`, {
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+              }
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/townhome_readings?select=leakage_factor_average&leakage_factor_average=not.is.null&order=created_at.desc&limit=1`, {
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+              }
+            }),
+            fetch(`${SUPABASE_URL}/rest/v1/flcondo_readings?select=leakage_factor_average&leakage_factor_average=not.is.null&order=created_at.desc&limit=1`, {
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`
+              }
             })
           ]);
 
@@ -1738,6 +1756,9 @@
           const flcondoData = await flcondoRes.json();
           const kampenExcessData = await kampenExcessRes.json();
           const townhomeExcessData = await townhomeExcessRes.json();
+          const kampenLeakData = await kampenLeakRes.json();
+          const townhomeLeakData = await townhomeLeakRes.json();
+          const flcondoLeakData = await flcondoLeakRes.json();
 
           const latestKampenExcess = (kampenExcessData && kampenExcessData.length > 0) 
             ? kampenExcessData[0].excess_capacity_percent 
@@ -1747,18 +1768,36 @@
             ? townhomeExcessData[0].excess_capacity_percent 
             : null;
 
+          const latestKampenLeak = (Array.isArray(kampenLeakData) && kampenLeakData.length > 0)
+            ? kampenLeakData[0].leakage_factor_average
+            : null;
+
+          const latestTownhomeLeak = (Array.isArray(townhomeLeakData) && townhomeLeakData.length > 0)
+            ? townhomeLeakData[0].leakage_factor_average
+            : null;
+
+          const latestFlcondoLeak = (Array.isArray(flcondoLeakData) && flcondoLeakData.length > 0)
+            ? flcondoLeakData[0].leakage_factor_average
+            : null;
+
           const taggedKampenData = kampenData.map(row => ({ 
             ...row, 
             site_name: 'Kampen',
-            excess_capacity_percent: latestKampenExcess
+            excess_capacity_percent: latestKampenExcess,
+            leakage_factor_average: latestKampenLeak ?? row.leakage_factor_average
           }));
           
           const taggedTownhomeData = townhomeData.map(row => ({ 
             ...row, 
             site_name: 'Townhome',
-            excess_capacity_percent: latestTownhomeExcess
+            excess_capacity_percent: latestTownhomeExcess,
+            leakage_factor_average: latestTownhomeLeak ?? row.leakage_factor_average
           }));
-          const taggedFlcondoData = flcondoData.map(row => ({ ...row, site_name: 'FLcondo' }));
+          const taggedFlcondoData = flcondoData.map(row => ({ 
+            ...row, 
+            site_name: 'FLcondo',
+            leakage_factor_average: latestFlcondoLeak ?? row.leakage_factor_average
+          }));
 
           const siteMap = new Map();
           
