@@ -2450,7 +2450,7 @@
                               }}
                               onClick={() => handleCellClick('House Air Leakage', siteName)}
                             >
-                              {row.leakage_factor_average?.toFixed(2) || 'N/A'}
+                              {(row.leakage_factor_average ?? row.leakage_slope_normalized)?.toFixed(2) || 'N/A'}
                             </td>
                             <td 
                               style={{
@@ -2774,7 +2774,7 @@
                               }}
                               onClick={() => handleCellClick('House Air Leakage', siteName)}
                             >
-                              {row.leakage_factor_average?.toFixed(2) || 'N/A'}
+                              {(row.leakage_factor_average ?? row.leakage_slope_normalized)?.toFixed(2) || 'N/A'}
                             </td>
                             <td 
                               style={{
