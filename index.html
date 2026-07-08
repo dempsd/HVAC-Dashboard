@@ -1652,7 +1652,18 @@
       const getSortedData = (dataToSort) => {
         if (!sortColumn) return dataToSort;
 
-        const columnKey = columnMap[sortColumn];
+        let columnKey = columnMap[sortColumn];
+
+        // On the cooling tab, resolve shared column labels to their cooling fields
+        if (activeTab === 'cooling') {
+          const coolRemap = {
+            'heat_hrs': 'cool_hrs',
+            'heat_cycles': 'cool_cycles',
+            'heat_flag_counter': 'cool_flag_counter',
+            'excess_capacity_percent': 'cool_excess_capacity_percent'
+          };
+          if (coolRemap[columnKey]) columnKey = coolRemap[columnKey];
+        }
         
         return [...dataToSort].sort((a, b) => {
           let aVal, bVal;
@@ -2670,7 +2681,7 @@
                         </td>
                       </tr>
                     ) : (
-                      data.map((row, idx) => {
+                      getSortedData(data).map((row, idx) => {
                         const siteName = row.site_name || 'Unknown';
                         const config = COOL_SITE_CONFIG[siteName] || { type: 'N/A', systemKBtuh: 0 };
                         
