@@ -1249,7 +1249,7 @@
                 }
               },
               y: {
-                title: { display: true, text: 'Leakage Factor (average)', color: '#0891b2', font: { size: 12, weight: 'bold' } },
+                title: { display: true, text: 'Leakage Factor', color: '#0891b2', font: { size: 12, weight: 'bold' } },
                 grid: { color: 'rgba(148,163,184,0.2)' },
                 ticks: { color: '#64748b', callback: (v) => v.toFixed(2) }
               }
@@ -1268,7 +1268,7 @@
             <div className="chart-header">
               <h2 className="chart-title">Air Leakage — All Sites</h2>
               <p className="chart-subtitle">
-                Leakage factor (average) over time for Kampen, Townhome, and FLcondo
+                Leakage Factor over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
               </p>
             </div>
@@ -1320,7 +1320,7 @@
                 </div>
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34,211,238,0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#475569', fontSize: '0.875rem', margin: 0 }}>
-                    <strong style={{ color: '#0891b2' }}>Note:</strong> The leakage factor (average) is the humidity-based infiltration metric (leakage_factor_average) computed during unoccupied infiltration episodes. Higher values indicate more air exchange with outside.
+                    <strong style={{ color: '#0891b2' }}>Note:</strong> Air leakage is the Leakage Factor, k, which corresponds to Infiltration ACH by the relation, ACH ~= k / 0.70. Higher values indicate more air exchange with outside.
                   </p>
                 </div>
               </div>
