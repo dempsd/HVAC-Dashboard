@@ -1636,7 +1636,6 @@
         'Flags Prior Week': 'heat_flag_counter',
         'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_daily',
         'Cool Rate @ Design (°F/hr)': 'cool_iatr_adjust_weekly',
-        'SHR (weekly avg)': 'shr_weekly',
         'CFM / ton': 'cool_cfm_weekly',
         'House Air Leakage': 'leakage_factor_average',
         'Excess Capacity (%)': 'excess_capacity_percent'
@@ -1713,9 +1712,7 @@
       const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-          const weekAgoISO = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-          const [kampenRes, townhomeRes, flcondoRes, kampenExcessRes, townhomeExcessRes, kampenLeakRes, townhomeLeakRes, flcondoLeakRes, kampenShrRes, townhomeShrRes, flcondoShrRes] = await Promise.all([
+          const [kampenRes, townhomeRes, flcondoRes, kampenExcessRes, townhomeExcessRes, kampenLeakRes, townhomeLeakRes, flcondoLeakRes] = await Promise.all([
             fetch(`${SUPABASE_URL}/rest/v1/kampen_readings?select=*&order=created_at.desc`, {
               headers: {
                 'apikey': SUPABASE_KEY,
@@ -1763,24 +1760,6 @@
                 'apikey': SUPABASE_KEY,
                 'Authorization': `Bearer ${SUPABASE_KEY}`
               }
-            }),
-            fetch(`${SUPABASE_URL}/rest/v1/kampen_readings?select=shr&shr=not.is.null&created_at=gte.${weekAgoISO}&order=created_at.desc&limit=5000`, {
-              headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`
-              }
-            }),
-            fetch(`${SUPABASE_URL}/rest/v1/townhome_readings?select=shr&shr=not.is.null&created_at=gte.${weekAgoISO}&order=created_at.desc&limit=5000`, {
-              headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`
-              }
-            }),
-            fetch(`${SUPABASE_URL}/rest/v1/flcondo_readings?select=shr&shr=not.is.null&created_at=gte.${weekAgoISO}&order=created_at.desc&limit=5000`, {
-              headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${SUPABASE_KEY}`
-              }
             })
           ]);
 
@@ -1792,23 +1771,6 @@
           const kampenLeakData = await kampenLeakRes.json();
           const townhomeLeakData = await townhomeLeakRes.json();
           const flcondoLeakData = await flcondoLeakRes.json();
-          const kampenShrData = await kampenShrRes.json();
-          const townhomeShrData = await townhomeShrRes.json();
-          const flcondoShrData = await flcondoShrRes.json();
-
-          const avgShr = (rows) => {
-            if (!Array.isArray(rows)) return null;
-            const vals = rows
-              .map(r => parseFloat(r.shr))
-              .filter(v => !isNaN(v) && v >= 0 && v <= 1);
-            if (vals.length === 0) return null;
-            return vals.reduce((a, b) => a + b, 0) / vals.length;
-          };
-
-          const kampenShrWeekly = avgShr(kampenShrData);
-          const townhomeShrWeekly = avgShr(townhomeShrData);
-          const flcondoShrWeekly = avgShr(flcondoShrData);
-
           const latestKampenExcess = (kampenExcessData && kampenExcessData.length > 0) 
             ? kampenExcessData[0].excess_capacity_percent 
             : null;
@@ -1833,22 +1795,19 @@
             ...row, 
             site_name: 'Kampen',
             excess_capacity_percent: latestKampenExcess,
-            leakage_factor_average: latestKampenLeak ?? row.leakage_factor_average,
-            shr_weekly: kampenShrWeekly
+            leakage_factor_average: latestKampenLeak ?? row.leakage_factor_average
           }));
           
           const taggedTownhomeData = townhomeData.map(row => ({ 
             ...row, 
             site_name: 'Townhome',
             excess_capacity_percent: latestTownhomeExcess,
-            leakage_factor_average: latestTownhomeLeak ?? row.leakage_factor_average,
-            shr_weekly: townhomeShrWeekly
+            leakage_factor_average: latestTownhomeLeak ?? row.leakage_factor_average
           }));
           const taggedFlcondoData = flcondoData.map(row => ({ 
             ...row, 
             site_name: 'FLcondo',
-            leakage_factor_average: latestFlcondoLeak ?? row.leakage_factor_average,
-            shr_weekly: flcondoShrWeekly
+            leakage_factor_average: latestFlcondoLeak ?? row.leakage_factor_average
           }));
 
           const siteMap = new Map();
@@ -2662,7 +2621,6 @@
                         'Current Cool Rate (°F/hr)',
                         'Flags Prior Week',
                         'Cool Rate @ Design (°F/hr)',
-                        'SHR (weekly avg)',
                         'CFM / ton',
                         'House Air Leakage',
                         'Excess Capacity (%)'
@@ -2689,7 +2647,7 @@
                             style={{
                               ...headerStyle,
                               textAlign: shouldCenter ? 'center' : 'left',
-                              background: (columnName === 'Cool Rate @ Design (°F/hr)' || columnName === 'SHR (weekly avg)' || columnName === 'House Air Leakage' || columnName === 'Excess Capacity (%)' || columnName === 'CFM / ton') 
+                              background: (columnName === 'Cool Rate @ Design (°F/hr)' || columnName === 'House Air Leakage' || columnName === 'Excess Capacity (%)' || columnName === 'CFM / ton') 
                                 ? 'rgba(34, 211, 238, 0.08)' 
                                 : 'transparent',
                               cursor: 'pointer',
@@ -2714,7 +2672,7 @@
                   <tbody>
                     {loading && data.length === 0 ? (
                       <tr>
-                        <td colSpan="17" style={{
+                        <td colSpan="16" style={{
                           textAlign: 'center',
                           padding: '3rem',
                           color: '#64748b'
@@ -2843,16 +2801,6 @@
                               onClick={() => handleCellClick('Cool Rate @ Design', siteName)}
                             >
                               {row.cool_iatr_adjust_weekly?.toFixed(2) || 'N/A'}
-                            </td>
-                            <td 
-                              style={{
-                                ...cellStyle,
-                                textAlign: 'right',
-                                paddingRight: '1rem',
-                                background: 'rgba(34, 211, 238, 0.08)'
-                              }}
-                            >
-                              {row.shr_weekly != null ? row.shr_weekly.toFixed(3) : 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
