@@ -1092,22 +1092,24 @@
 
       const fetchLeakageForSite = async (table, siteName, tr) => {
         const col = 'leakage_factor_average';
-        let days, startDate;
+        let startDate;
         const now = new Date();
         if (tr === 'since2026') {
           startDate = new Date('2026-01-01T00:00:00').toISOString();
         } else {
-          days = tr === '24h' ? 1 : tr === '3d' ? 3 : tr === '7d' ? 7 : 30;
+          const days = tr === '24h' ? 1 : tr === '3d' ? 3 : tr === '7d' ? 7 : 30;
           startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
         }
         const nowISO = now.toISOString();
-        const maxRows = tr === 'since2026' ? 50000 : (days * 480);
         const batchSize = 1000;
+        const safetyCap = 200000; // date filter bounds the real window; this only prevents runaway
         let allData = [];
         let offset = 0;
-        while (offset < maxRows) {
+        // Fetch newest-first: if the window ever exceeds the cap, we drop the
+        // OLDEST rows, never the most recent — so charts always reach "now".
+        while (offset < safetyCap) {
           const response = await fetch(
-            `${SUPABASE_URL}/rest/v1/${table}?select=created_at,${col}&created_at=gte.${startDate}&created_at=lte.${nowISO}&${col}=not.is.null&order=created_at.asc&limit=${batchSize}&offset=${offset}`,
+            `${SUPABASE_URL}/rest/v1/${table}?select=created_at,${col}&created_at=gte.${startDate}&created_at=lte.${nowISO}&${col}=not.is.null&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
             { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
           );
           if (!response.ok) throw new Error(`Failed to fetch ${siteName}: ${response.statusText}`);
@@ -1116,8 +1118,9 @@
           allData = allData.concat(batch);
           if (batch.length < batchSize) break;
           offset += batchSize;
-          if (offset >= 50000) break;
         }
+        // Fetched descending; aggregateData and the plot need ascending time order.
+        allData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         if (tr === '30d' || tr === 'since2026') {
           return aggregateData(allData, col).map(d => ({
             timestamp: d.timestamp, value: d.value
