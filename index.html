@@ -1158,51 +1158,49 @@
         chartInstance.current = new Chart(ctx, {
           type: 'line',
           data: {
-            labels: chartData.kampen.length >= chartData.townhome.length && chartData.kampen.length >= chartData.flcondo.length
-              ? chartData.kampen.map((_, i) => i)
-              : chartData.townhome.length >= chartData.flcondo.length
-              ? chartData.townhome.map((_, i) => i)
-              : chartData.flcondo.map((_, i) => i),
             datasets: [
               {
                 label: 'Kampen',
-                data: chartData.kampen.map(d => d.value),
+                data: chartData.kampen.map(d => ({ x: new Date(d.timestamp).getTime(), y: d.value })),
                 borderColor: '#22d3ee',
                 backgroundColor: 'rgba(34, 211, 238, 0.15)',
                 borderWidth: 2,
                 fill: false,
                 tension: 0.3,
                 pointRadius: 0,
-                pointHoverRadius: 5
+                pointHoverRadius: 5,
+                spanGaps: true
               },
               {
                 label: 'Townhome',
-                data: chartData.townhome.map(d => d.value),
+                data: chartData.townhome.map(d => ({ x: new Date(d.timestamp).getTime(), y: d.value })),
                 borderColor: '#fbbf24',
                 backgroundColor: 'rgba(251, 191, 36, 0.15)',
                 borderWidth: 2,
                 fill: false,
                 tension: 0.3,
                 pointRadius: 0,
-                pointHoverRadius: 5
+                pointHoverRadius: 5,
+                spanGaps: true
               },
               {
                 label: 'FLcondo',
-                data: chartData.flcondo.map(d => d.value),
+                data: chartData.flcondo.map(d => ({ x: new Date(d.timestamp).getTime(), y: d.value })),
                 borderColor: '#a855f7',
                 backgroundColor: 'rgba(168, 85, 247, 0.15)',
                 borderWidth: 2,
                 fill: false,
                 tension: 0.3,
                 pointRadius: 0,
-                pointHoverRadius: 5
+                pointHoverRadius: 5,
+                spanGaps: true
               }
             ]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: { intersect: false, mode: 'index' },
+            interaction: { intersect: false, mode: 'nearest', axis: 'x' },
             plugins: {
               legend: {
                 display: true,
@@ -1216,14 +1214,7 @@
                 borderWidth: 1,
                 padding: 12,
                 callbacks: {
-                  title: (items) => {
-                    const idx = items[0]?.dataIndex;
-                    const datasets = [chartData.kampen, chartData.townhome, chartData.flcondo];
-                    for (const ds of datasets) {
-                      if (ds[idx]) return new Date(ds[idx].timestamp).toLocaleString();
-                    }
-                    return '';
-                  },
+                  title: (items) => items[0] ? new Date(items[0].parsed.x).toLocaleString() : '',
                   label: (item) => {
                     const v = item.parsed.y;
                     return v != null ? `${item.dataset.label}: ${v.toFixed(3)}` : null;
@@ -1233,21 +1224,17 @@
             },
             scales: {
               x: {
+                type: 'linear',
+                bounds: 'data',
                 grid: { color: 'rgba(148,163,184,0.2)' },
                 ticks: {
                   color: '#64748b',
                   maxTicksLimit: 8,
-                  callback: function(value, index) {
-                    const datasets = [chartData.kampen, chartData.townhome, chartData.flcondo];
-                    for (const ds of datasets) {
-                      if (ds[index]) {
-                        const d = new Date(ds[index].timestamp);
-                        return timeRange === '24h'
-                          ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-                          : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                      }
-                    }
-                    return '';
+                  callback: function(value) {
+                    const d = new Date(value);
+                    return timeRange === '24h'
+                      ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                   }
                 }
               },
@@ -1273,7 +1260,7 @@
               <p className="chart-subtitle">
                 Leakage Factor over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0711b'}
+                {' · build 0711c'}
               </p>
             </div>
             <div className="controls">
