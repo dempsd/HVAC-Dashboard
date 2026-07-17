@@ -274,7 +274,7 @@
       'ON/OFF Cycles': 'heat_cycles',
       'Heat Cycle': 'avg_heat_cycle',
       'Current Heat Rate': 'heat_iatr_meas_daily',
-      'Heat Rate @ Design': 'heat_iatr_adjust_daily',
+      'Heat Rate @ Design': 'heat_iatr_adjust_weekly',
       'House Air Leakage': 'leakage_factor_average',
       'Cool Run Hours': 'cool_hrs',
       'Cool ON/OFF Cycles': 'cool_cycles',
@@ -1260,7 +1260,7 @@
               <p className="chart-subtitle">
                 Leakage Factor over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0711d'}
+                {' · build 0717a'}
               </p>
             </div>
             <div className="controls">
@@ -1331,7 +1331,7 @@
       const chartRef = useRef(null);
       const chartInstance = useRef(null);
 
-      const col = mode === 'heating' ? 'heat_iatr_adjust_daily' : 'cool_iatr_adjust_weekly';
+      const col = mode === 'heating' ? 'heat_iatr_adjust_weekly' : 'cool_iatr_adjust_weekly';
       const title = mode === 'heating' ? 'Design Heat Rate — All Sites' : 'Design Cool Rate — All Sites';
       const label = mode === 'heating' ? 'Design Heat Rate' : 'Design Cool Rate';
 
@@ -1502,7 +1502,7 @@
               <p className="chart-subtitle">
                 {label} over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0711d'}
+                {' · build 0717a'}
               </p>
             </div>
             <div className="controls">
@@ -1554,7 +1554,7 @@
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34,211,238,0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#475569', fontSize: '0.875rem', margin: 0 }}>
                     <strong style={{ color: '#0891b2' }}>Note:</strong> {label} is the measured IATR normalized to design conditions
-                    ({mode === 'heating' ? 'heat_iatr_adjust_daily' : 'cool_iatr_adjust_weekly'}), matching the "{mode === 'heating' ? 'Heat' : 'Cool'} Rate @ Design" column in the table.
+                    ({mode === 'heating' ? 'heat_iatr_adjust_weekly' : 'cool_iatr_adjust_weekly'}), matching the "{mode === 'heating' ? 'Heat' : 'Cool'} Rate @ Design" column in the table.
                     A well-calibrated adjustment should be relatively flat over time.
                   </p>
                 </div>
@@ -1870,7 +1870,7 @@
         'Current Heat Rate (°F/hr)': 'heat_iatr_meas_daily',
         'Current Cool Rate (°F/hr)': 'cool_iatr_meas_daily',
         'Flags Prior Week': 'heat_flag_counter',
-        'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_daily',
+        'Heat Rate @ Design (°F/hr)': 'heat_iatr_adjust_weekly',
         'Cool Rate @ Design (°F/hr)': 'cool_iatr_adjust_weekly',
         'CFM / ton': 'cool_cfm_weekly',
         'House Air Leakage': 'leakage_factor_average',
@@ -2766,7 +2766,7 @@
                               }}
                               onClick={() => handleCellClick('Heat Rate @ Design', siteName)}
                             >
-                              {row.heat_iatr_adjust_daily?.toFixed(1) || 'N/A'}
+                              {row.heat_iatr_adjust_weekly?.toFixed(1) || 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
@@ -3042,14 +3042,16 @@
                               style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
                               onClick={() => handleCellClick('Cool Run Hours', siteName)}
                             >
-                              {row.cool_hrs?.toFixed(1) || 'N/A'}
+                              {siteName === 'Kampen'
+                                ? ((row.cool_hrs ?? 0) + 154.35).toFixed(1)
+                                : (row.cool_hrs?.toFixed(1) || 'N/A')}
                             </td>
                             <td 
                               className="clickable-cell"
                               style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
                               onClick={() => handleCellClick('Cool ON/OFF Cycles', siteName)}
                             >
-                              {row.cool_cycles ?? 'N/A'}
+                              {siteName === 'Kampen' ? ((row.cool_cycles ?? 0) + 678) : (row.cool_cycles ?? 'N/A')}
                             </td>
                             <td 
                               className="clickable-cell"
@@ -3327,4 +3329,3 @@
   </script>
 </body>
 </html>
-
