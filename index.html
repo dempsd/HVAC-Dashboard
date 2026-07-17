@@ -411,7 +411,37 @@
       }
       
       const rawData = allData.reverse();
-      
+
+      // ====================================================================
+      // KAMPEN COUNTER RESET COMPENSATION (2026-07-13 01:22 EDT = 05:22 UTC)
+      // cycle_start_date in kampen_config was moved forward to 2026-06-30,
+      // so the trigger re-aggregated these cumulative counters over a shorter
+      // window and they stepped DOWN. Adding the lost amount back to rows at
+      // or after the reset restores a continuously increasing series.
+      //   cool_cycles 1135 -> 457     (+678)
+      //   cool_hrs    265.16 -> 110.81 (+154.35)
+      //   heat_cycles 109 -> 0        (+109)
+      //   heat_hrs    22.36 -> 0.00   (+22.36)
+      // NOTE: this is separate from the table's baseline adders (+696/+2142
+      // heating, +154.35/+678 cooling), which cover earlier start-date changes.
+      // ====================================================================
+      const KAMPEN_RESET_UTC = new Date('2026-07-13T05:22:00Z').getTime();
+      const KAMPEN_RESET_OFFSETS = {
+        cool_cycles: 678,
+        cool_hrs: 154.35,
+        heat_cycles: 109,
+        heat_hrs: 22.36
+      };
+      const resetOffset = (site === 'Kampen') ? KAMPEN_RESET_OFFSETS[actualColumnName] : undefined;
+      if (resetOffset !== undefined) {
+        rawData.forEach(row => {
+          if (row[actualColumnName] !== null && row[actualColumnName] !== undefined
+              && new Date(row.created_at).getTime() >= KAMPEN_RESET_UTC) {
+            row[actualColumnName] = parseFloat(row[actualColumnName]) + resetOffset;
+          }
+        });
+      }
+
       let processedData;
       if (timeRange === '30d' || timeRange === 'since2026') {
         processedData = aggregateData(rawData, actualColumnName);
@@ -1260,7 +1290,7 @@
               <p className="chart-subtitle">
                 Leakage Factor over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0717a'}
+                {' · build 0717b'}
               </p>
             </div>
             <div className="controls">
@@ -1502,7 +1532,7 @@
               <p className="chart-subtitle">
                 {label} over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0717a'}
+                {' · build 0717b'}
               </p>
             </div>
             <div className="controls">
