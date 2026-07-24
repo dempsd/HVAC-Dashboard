@@ -1313,7 +1313,7 @@
               <p className="chart-subtitle">
                 Leakage Factor over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0717c'}
+                {' · build 0717d'}
               </p>
             </div>
             <div className="controls">
@@ -1376,7 +1376,8 @@
       );
     };
 
-    const DesignRateModal = ({ mode = 'heating', onClose }) => {
+    // kind: 'design' -> weekly design-adjusted rate; 'current' -> daily measured rate
+    const DesignRateModal = ({ mode = 'heating', kind = 'design', onClose }) => {
       const [timeRange, setTimeRange] = useState('7d');
       const [chartData, setChartData] = useState(null);
       const [loading, setLoading] = useState(true);
@@ -1384,9 +1385,13 @@
       const chartRef = useRef(null);
       const chartInstance = useRef(null);
 
-      const col = mode === 'heating' ? 'heat_iatr_adjust_weekly' : 'cool_iatr_adjust_weekly';
-      const title = mode === 'heating' ? 'Design Heat Rate — All Sites' : 'Design Cool Rate — All Sites';
-      const label = mode === 'heating' ? 'Design Heat Rate' : 'Design Cool Rate';
+      const RATE_COLS = {
+        design:  { heating: 'heat_iatr_adjust_weekly', cooling: 'cool_iatr_adjust_weekly' },
+        current: { heating: 'heat_iatr_meas_daily',    cooling: 'cool_iatr_meas_daily'    }
+      };
+      const col = RATE_COLS[kind][mode];
+      const label = (kind === 'design' ? 'Design ' : 'Current ') + (mode === 'heating' ? 'Heat Rate' : 'Cool Rate');
+      const title = label + ' — All Sites';
 
       const fetchRateForSite = async (table, siteName, tr) => {
         let startDate;
@@ -1444,7 +1449,7 @@
           }
         };
         loadAll();
-      }, [timeRange, mode]);
+      }, [timeRange, mode, kind]);
 
       useEffect(() => {
         if (!chartData || !chartRef.current || loading) return;
@@ -1555,7 +1560,7 @@
               <p className="chart-subtitle">
                 {label} over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0717c'}
+                {' · build 0717d'}
               </p>
             </div>
             <div className="controls">
@@ -1606,9 +1611,11 @@
                 </div>
                 <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34,211,238,0.1)', borderRadius: '8px' }}>
                   <p style={{ color: '#475569', fontSize: '0.875rem', margin: 0 }}>
-                    <strong style={{ color: '#0891b2' }}>Note:</strong> {label} is the measured IATR normalized to design conditions
-                    ({mode === 'heating' ? 'heat_iatr_adjust_weekly' : 'cool_iatr_adjust_weekly'}), matching the "{mode === 'heating' ? 'Heat' : 'Cool'} Rate @ Design" column in the table.
-                    A well-calibrated adjustment should be relatively flat over time.
+                    <strong style={{ color: '#0891b2' }}>Note:</strong> {label} ({col}) matches the
+                    "{(mode === 'heating' ? 'Heat' : 'Cool') + (kind === 'design' ? ' Rate @ Design' : ' Rate')}" column in the table.
+                    {kind === 'design'
+                      ? ' This is the measured IATR normalized to design conditions; a well-calibrated adjustment should be relatively flat over time.'
+                      : ' This is the measured IATR as-is, so it varies with outdoor conditions.'}
                   </p>
                 </div>
               </div>
@@ -1903,6 +1910,7 @@
       const [showScatterPlot, setShowScatterPlot] = useState(null);
       const [showAirLeakage, setShowAirLeakage] = useState(false);
       const [showDesignRate, setShowDesignRate] = useState(null);
+      const [showCurrentRate, setShowCurrentRate] = useState(null);
       const [sortColumn, setSortColumn] = useState(null);
       const [sortDirection, setSortDirection] = useState('asc');
       const [activeTab, setActiveTab] = useState('heating');
@@ -2467,6 +2475,27 @@
 
                   {activeTab === 'cooling' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => setShowCurrentRate('cooling')}
+                        style={{
+                          background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.5rem 1rem',
+                          color: 'white',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      >
+                        📊 Current Cool Rate — All Sites
+                      </button>
                       <button
                         onClick={() => setShowDesignRate('cooling')}
                         style={{
@@ -3370,7 +3399,16 @@
           {showDesignRate && (
             <DesignRateModal
               mode={showDesignRate}
+              kind="design"
               onClose={() => setShowDesignRate(null)}
+            />
+          )}
+
+          {showCurrentRate && (
+            <DesignRateModal
+              mode={showCurrentRate}
+              kind="current"
+              onClose={() => setShowCurrentRate(null)}
             />
           )}
         </div>
