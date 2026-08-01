@@ -1313,7 +1313,7 @@
               <p className="chart-subtitle">
                 Leakage Factor over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0717f-DAILY'}
+                {' · build 0724a-DAILY'}
               </p>
             </div>
             <div className="controls">
@@ -1563,7 +1563,7 @@
               <p className="chart-subtitle">
                 {label} over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0717f-DAILY'}
+                {' · build 0724a-DAILY'}
               </p>
             </div>
             <div className="controls">
@@ -1618,6 +1618,179 @@
                     {kind === 'design'
                       ? ' This is the measured IATR normalized to design conditions; a well-calibrated adjustment should be relatively flat over time.'
                       : ' This is the measured IATR as-is, so it varies with outdoor conditions.'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="error-message">No data available.</div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    const CfmPerTonModal = ({ onClose }) => {
+      const [timeRange, setTimeRange] = useState('7d');
+      const [chartData, setChartData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      const col = 'cool_cfm_weekly';
+
+      const fetchForSite = async (table, siteName, tr) => {
+        let startDate;
+        const now = new Date();
+        if (tr === 'since2026') {
+          startDate = new Date('2026-01-01T00:00:00').toISOString();
+        } else {
+          const days = tr === '24h' ? 1 : tr === '3d' ? 3 : tr === '7d' ? 7 : 30;
+          startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        }
+        const nowISO = now.toISOString();
+        const batchSize = 1000;
+        const safetyCap = 200000;
+        let allData = [];
+        let offset = 0;
+        while (offset < safetyCap) {
+          const response = await fetch(
+            `${SUPABASE_URL}/rest/v1/${table}?select=created_at,${col}&created_at=gte.${startDate}&created_at=lte.${nowISO}&${col}=not.is.null&order=created_at.desc&limit=${batchSize}&offset=${offset}`,
+            { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+          );
+          if (!response.ok) throw new Error(`Failed to fetch ${siteName}: ${response.statusText}`);
+          const batch = await response.json();
+          if (batch.length === 0) break;
+          allData = allData.concat(batch);
+          if (batch.length < batchSize) break;
+          offset += batchSize;
+        }
+        allData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        if (tr === '30d' || tr === 'since2026') {
+          return aggregateData(allData, col).map(d => ({ timestamp: d.timestamp, value: d.value }));
+        }
+        return allData
+          .filter(r => r[col] !== null && r[col] !== undefined)
+          .map(r => ({ timestamp: new Date(r.created_at), value: parseFloat(r[col]) }));
+      };
+
+      useEffect(() => {
+        const loadAll = async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const [kampen, townhome, flcondo] = await Promise.all([
+              fetchForSite('kampen_readings', 'Kampen', timeRange),
+              fetchForSite('townhome_readings', 'Townhome', timeRange),
+              fetchForSite('flcondo_readings', 'FLcondo', timeRange)
+            ]);
+            setChartData({ kampen, townhome, flcondo });
+          } catch (err) {
+            setError(err.message);
+          } finally {
+            setLoading(false);
+          }
+        };
+        loadAll();
+      }, [timeRange]);
+
+      useEffect(() => {
+        if (!chartData || !chartRef.current || loading) return;
+        if (chartInstance.current) chartInstance.current.destroy();
+        const ctx = chartRef.current.getContext('2d');
+        const mk = (arr) => arr.map(d => ({ x: new Date(d.timestamp).getTime(), y: d.value }));
+        chartInstance.current = new Chart(ctx, {
+          type: 'line',
+          data: {
+            datasets: [
+              { label: 'Kampen', data: mk(chartData.kampen), borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.15)', borderWidth: 2, fill: false, tension: 0.3, pointRadius: 0, pointHoverRadius: 5, spanGaps: true },
+              { label: 'Townhome', data: mk(chartData.townhome), borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.15)', borderWidth: 2, fill: false, tension: 0.3, pointRadius: 0, pointHoverRadius: 5, spanGaps: true },
+              { label: 'FLcondo', data: mk(chartData.flcondo), borderColor: '#a855f7', backgroundColor: 'rgba(168,85,247,0.15)', borderWidth: 2, fill: false, tension: 0.3, pointRadius: 0, pointHoverRadius: 5, spanGaps: true }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'nearest', axis: 'x' },
+            plugins: {
+              legend: { display: true, labels: { color: '#334155', font: { size: 13, family: '"JetBrains Mono", monospace' } } },
+              tooltip: {
+                backgroundColor: 'rgba(255,255,255,0.97)', titleColor: '#0891b2', bodyColor: '#334155',
+                borderColor: '#22d3ee', borderWidth: 1, padding: 12,
+                callbacks: {
+                  title: (items) => items[0] ? new Date(items[0].parsed.x).toLocaleString() : '',
+                  label: (item) => { const v = item.parsed.y; return v != null ? `${item.dataset.label}: ${v.toFixed(0)} CFM/ton` : null; }
+                }
+              }
+            },
+            scales: {
+              x: {
+                type: 'linear', bounds: 'data',
+                grid: { color: 'rgba(148,163,184,0.2)' },
+                ticks: {
+                  color: '#64748b', maxTicksLimit: 8,
+                  callback: function(value) {
+                    const d = new Date(value);
+                    return timeRange === '24h'
+                      ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  }
+                }
+              },
+              y: {
+                title: { display: true, text: 'CFM per Ton', color: '#0891b2', font: { size: 12, weight: 'bold' } },
+                grid: { color: 'rgba(148,163,184,0.2)' },
+                ticks: { color: '#64748b', callback: (v) => v.toFixed(0) }
+              }
+            }
+          }
+        });
+        return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+      }, [chartData, loading, timeRange]);
+
+      const totalPoints = chartData ? (chartData.kampen.length + chartData.townhome.length + chartData.flcondo.length) : 0;
+
+      return (
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="close-button" onClick={onClose}>×</button>
+            <div className="chart-header">
+              <h2 className="chart-title">CFM per Ton — All Sites</h2>
+              <p className="chart-subtitle">
+                CFM per Ton over time for Kampen, Townhome, and FLcondo
+                {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
+                {' · build 0724a'}
+              </p>
+            </div>
+            <div className="controls">
+              <div className="control-group">
+                <label className="control-label">Time Range</label>
+                <div className="time-range-buttons">
+                  {['24h', '3d', '7d', '30d', 'since2026'].map(range => (
+                    <button key={range} className={`time-button ${timeRange === range ? 'active' : ''}`} onClick={() => setTimeRange(range)}>
+                      {range === '24h' ? '24 Hours' : range === '3d' ? '3 Days' : range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : 'Since 1/1/26'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {loading ? (
+              <div className="loading-spinner"><div className="spinner"></div><div>Loading CFM/ton data...</div></div>
+            ) : error ? (
+              <div className="error-message"><strong>Error:</strong> {error}</div>
+            ) : chartData ? (
+              <div>
+                <div className="stats-grid">
+                  <div className="stat-card"><div className="stat-label">Total Points</div><div className="stat-value">{totalPoints}</div></div>
+                  <div className="stat-card"><div className="stat-label">Kampen</div><div className="stat-value" style={{ color: '#22d3ee' }}>{chartData.kampen.length}</div></div>
+                  <div className="stat-card"><div className="stat-label">Townhome</div><div className="stat-value" style={{ color: '#fbbf24' }}>{chartData.townhome.length}</div></div>
+                  <div className="stat-card"><div className="stat-label">FLcondo</div><div className="stat-value" style={{ color: '#a855f7' }}>{chartData.flcondo.length}</div></div>
+                </div>
+                <div className="chart-container"><canvas ref={chartRef}></canvas></div>
+                <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(34,211,238,0.1)', borderRadius: '8px' }}>
+                  <p style={{ color: '#475569', fontSize: '0.875rem', margin: 0 }}>
+                    <strong style={{ color: '#0891b2' }}>Note:</strong> CFM per Ton plotted as the 7-day rolling average (cool_cfm_weekly),
+                    matching the "CFM / ton" column in the table. Airflow per nominal ton of cooling capacity.
                   </p>
                 </div>
               </div>
@@ -1913,6 +2086,7 @@
       const [showAirLeakage, setShowAirLeakage] = useState(false);
       const [showDesignRate, setShowDesignRate] = useState(null);
       const [showCurrentRate, setShowCurrentRate] = useState(null);
+      const [showCfmPerTon, setShowCfmPerTon] = useState(false);
       const [sortColumn, setSortColumn] = useState(null);
       const [sortDirection, setSortDirection] = useState('asc');
       const [activeTab, setActiveTab] = useState('heating');
@@ -2498,6 +2672,27 @@
 
                   {activeTab === 'cooling' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => setShowCfmPerTon(true)}
+                        style={{
+                          background: 'linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0.5rem 1rem',
+                          color: 'white',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          fontSize: '0.875rem',
+                          fontWeight: 500,
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                      >
+                        💨 CFM per Ton — All Sites
+                      </button>
                       <button
                         onClick={() => setShowCurrentRate('cooling')}
                         style={{
@@ -3432,6 +3627,12 @@
               mode={showCurrentRate}
               kind="current"
               onClose={() => setShowCurrentRate(null)}
+            />
+          )}
+
+          {showCfmPerTon && (
+            <CfmPerTonModal
+              onClose={() => setShowCfmPerTon(false)}
             />
           )}
         </div>
