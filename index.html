@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -349,34 +350,17 @@
     };
 
     // ========================================================================
-    // COUNTER RESET COMPENSATION
-    // cool_cycles / cool_hrs / heat_cycles / heat_hrs are re-aggregated by the
-    // trigger from config.cycle_start_date on EVERY insert. When that config
-    // date was moved forward (to 2026-06-30 on both sites), the aggregation
-    // window shrank and these cumulative counters stepped DOWN.
-    //
-    // Each entry below adds back what a reset removed, applied only to rows at
-    // or after that reset's timestamp. Offsets are CUMULATIVE: a row gets the
-    // sum of every step at or before its timestamp. This keeps the series
-    // continuously increasing without disturbing pre-reset history.
-    //
-    // Kampen   2026-07-13 05:22 UTC : cool 1135->457, 265.16->110.81
-    //                                 heat 109->0,    22.36->0.00
-    // Townhome 2026-07-14 20:09 UTC : cool 1970->1439, 285.28->220.34
-    //          2026-07-14 20:12 UTC : cool 1439->772,  220.34->137.02
-    //          (heating offsets 0 — Townhome heat counters already at zero)
-    //
-    // Separate from the table's legacy Kampen heating adders (+696 / +2142),
-    // which compensate an earlier start-date change.
+    // COUNTER RESET COMPENSATION — DISABLED
+    // Historical counter resets were repaired in the database on 2026-08-06.
+    // cool_cycles / cool_hrs / heat_cycles / heat_hrs are now monotonic from
+    // 2026-01-01 at all three sites. Helpers below remain so call sites stay
+    // valid; with RESET_STEPS empty they always return 0.
     // ========================================================================
     const RESET_STEPS = {
-      Kampen: [
-        { from: '2026-07-13T05:22:00.000Z', cool_cycles: 678, cool_hrs: 154.35, heat_cycles: 109, heat_hrs: 22.36 }
-      ],
-      Townhome: [
-        { from: '2026-07-14T20:09:03.346Z', cool_cycles: 531, cool_hrs: 64.94, heat_cycles: 0, heat_hrs: 0 },
-        { from: '2026-07-14T20:12:03.685Z', cool_cycles: 667, cool_hrs: 83.32, heat_cycles: 0, heat_hrs: 0 }
-      ]
+      // 2026-08-06: cleared. cycle_start_date is now pinned at 2026-01-01 for all
+      // three sites, the calibration scripts no longer write it, and cool_/heat_
+      // cycles+hrs were backfilled monotonic from 2026-01-01. Verified in DB:
+      // zero decreases across the full series. Any offset here would double-count.
     };
 
     // Total offset for a site+column as of now — used by the table (latest row).
@@ -3025,7 +3009,7 @@
                               onClick={() => handleCellClick('Run Hours', siteName)}
                             >
                               {siteName === 'Kampen' 
-                                ? ((row.heat_hrs ?? 0) + 696).toFixed(1) 
+                                ? (row.heat_hrs ?? 0).toFixed(1) 
                                 : (row.heat_hrs?.toFixed(1) || 'N/A')}
                             </td>
                             <td 
@@ -3033,7 +3017,7 @@
                               style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
                               onClick={() => handleCellClick('ON/OFF Cycles', siteName)}
                             >
-                              {siteName === 'Kampen' ? ((row.heat_cycles ?? 0) + 2142) : (row.heat_cycles ?? 0)}
+                              {row.heat_cycles ?? 0}
                             </td>
                             <td 
                               className="clickable-cell"
