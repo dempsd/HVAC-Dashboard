@@ -1874,6 +1874,10 @@
           minRangeConstraint = 100; // 100 CFM/ton minimum
         } else if (metric.includes('House Air Leakage')) {
           minRangeConstraint = 1.0; // 1.0 minimum
+        } else if (metric.includes('Cycles')) {
+          minRangeConstraint = 10;  // 10 cycles minimum
+        } else if (metric.includes('Hours') || metric.includes('Hrs')) {
+          minRangeConstraint = 2;   // 2 hours minimum
         }
         
         // Enforce minimum range
@@ -1881,6 +1885,16 @@
           const midpoint = (minValue + maxValue) / 2;
           yMin = midpoint - (minRangeConstraint / 2);
           yMax = midpoint + (minRangeConstraint / 2);
+        }
+        
+        // Final guard: a perfectly flat series (e.g. cumulative heating counters
+        // during cooling season) leaves yMin === yMax, which collapses the axis
+        // and renders nothing. Force a visible band around the value.
+        if (!(yMax > yMin)) {
+          const mid = isFinite(yMin) ? yMin : 0;
+          const band = Math.max(Math.abs(mid) * 0.05, 1);
+          yMin = mid - band;
+          yMax = mid + band;
         }
         
         // Add small padding to the axis
