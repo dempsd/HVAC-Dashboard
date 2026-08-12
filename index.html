@@ -1333,7 +1333,7 @@
               <p className="chart-subtitle">
                 Leakage Factor over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0724a-DAILY'}
+                {' · build 0812b-DAILY'}
               </p>
             </div>
             <div className="controls">
@@ -1583,7 +1583,7 @@
               <p className="chart-subtitle">
                 {label} over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0724a-DAILY'}
+                {' · build 0812b-DAILY'}
               </p>
             </div>
             <div className="controls">
@@ -1779,7 +1779,7 @@
               <p className="chart-subtitle">
                 CFM per Ton over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0724a'}
+                {' · build 0812b'}
               </p>
             </div>
             <div className="controls">
@@ -2012,6 +2012,13 @@
             <div className="chart-header">
               <h2 className="chart-title">{metric} - {site}</h2>
               <p className="chart-subtitle">
+                {(() => {
+                  const mc = METRIC_COLUMN_MAP[metric] || '';
+                  const windowLabel = (mc.endsWith('_week') || mc.endsWith('_weekly'))
+                    ? 'Weekly (7-day) average'
+                    : (mc.endsWith('_daily') ? 'Daily (24-hour) average' : null);
+                  return windowLabel ? windowLabel + ' · ' : '';
+                })()}
                 Historical trend {timeRange === '30d' || timeRange === 'since2026' ? '(15-min avg)' : '(3-min intervals)'}
               </p>
             </div>
