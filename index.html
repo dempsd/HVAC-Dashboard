@@ -1333,7 +1333,7 @@
               <p className="chart-subtitle">
                 Leakage Factor over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0812f'}
+                {' · build 0924b'}
               </p>
             </div>
             <div className="controls">
@@ -1584,7 +1584,7 @@
               <p className="chart-subtitle">
                 {label} over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0812f'}
+                {' · build 0924b'}
               </p>
             </div>
             <div className="controls">
@@ -1780,7 +1780,7 @@
               <p className="chart-subtitle">
                 CFM per Ton over time for Kampen, Townhome, and FLcondo
                 {(timeRange === '30d' || timeRange === 'since2026') ? ' (15-min avg)' : ' (3-min intervals)'}
-                {' · build 0812f'}
+                {' · build 0924b'}
               </p>
             </div>
             <div className="controls">
@@ -2306,23 +2306,49 @@
             ? flcondoLeakData[0].leakage_factor_average
             : null;
 
+          // Carry forward the last non-null avg cycle values (rolling 24h metric
+          // goes NULL when no cycles occur in the window, e.g. off-season). Data
+          // is already fetched newest-first, so find() gets the most recent value.
+          const lastNonNull = (arr, key) => {
+            const hit = (arr || []).find(r => r[key] !== null && r[key] !== undefined);
+            return hit ? hit[key] : null;
+          };
+          const latestKampenCoolCyc = lastNonNull(kampenData, 'avg_cool_cycle');
+          const latestKampenHeatCyc = lastNonNull(kampenData, 'avg_heat_cycle');
+          const latestTownhomeCoolCyc = lastNonNull(townhomeData, 'avg_cool_cycle');
+          const latestTownhomeHeatCyc = lastNonNull(townhomeData, 'avg_heat_cycle');
+          const latestFlcondoCoolCyc = lastNonNull(flcondoData, 'avg_cool_cycle');
+          const latestFlcondoHeatCyc = lastNonNull(flcondoData, 'avg_heat_cycle');
+
           const taggedKampenData = kampenData.map(row => ({ 
             ...row, 
             site_name: 'Kampen',
             excess_capacity_percent: latestKampenExcess,
-            leakage_factor_average: latestKampenLeak ?? row.leakage_factor_average
+            leakage_factor_average: latestKampenLeak ?? row.leakage_factor_average,
+            avg_cool_cycle: row.avg_cool_cycle ?? latestKampenCoolCyc,
+            avg_heat_cycle: row.avg_heat_cycle ?? latestKampenHeatCyc,
+            avg_cool_cycle_cf: (row.avg_cool_cycle == null && latestKampenCoolCyc != null),
+            avg_heat_cycle_cf: (row.avg_heat_cycle == null && latestKampenHeatCyc != null)
           }));
           
           const taggedTownhomeData = townhomeData.map(row => ({ 
             ...row, 
             site_name: 'Townhome',
             excess_capacity_percent: latestTownhomeExcess,
-            leakage_factor_average: latestTownhomeLeak ?? row.leakage_factor_average
+            leakage_factor_average: latestTownhomeLeak ?? row.leakage_factor_average,
+            avg_cool_cycle: row.avg_cool_cycle ?? latestTownhomeCoolCyc,
+            avg_heat_cycle: row.avg_heat_cycle ?? latestTownhomeHeatCyc,
+            avg_cool_cycle_cf: (row.avg_cool_cycle == null && latestTownhomeCoolCyc != null),
+            avg_heat_cycle_cf: (row.avg_heat_cycle == null && latestTownhomeHeatCyc != null)
           }));
           const taggedFlcondoData = flcondoData.map(row => ({ 
             ...row, 
             site_name: 'FLcondo',
-            leakage_factor_average: latestFlcondoLeak ?? row.leakage_factor_average
+            leakage_factor_average: latestFlcondoLeak ?? row.leakage_factor_average,
+            avg_cool_cycle: row.avg_cool_cycle ?? latestFlcondoCoolCyc,
+            avg_heat_cycle: row.avg_heat_cycle ?? latestFlcondoHeatCyc,
+            avg_cool_cycle_cf: (row.avg_cool_cycle == null && latestFlcondoCoolCyc != null),
+            avg_heat_cycle_cf: (row.avg_heat_cycle == null && latestFlcondoHeatCyc != null)
           }));
 
           const siteMap = new Map();
@@ -3082,7 +3108,12 @@
                               style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
                               onClick={() => handleCellClick('Heat Cycle', siteName)}
                             >
-                              {row.avg_heat_cycle?.toFixed(1) || 'N/A'}
+                              {row.avg_heat_cycle != null
+                                ? <span title={row.avg_heat_cycle_cf ? 'Carried forward \u2014 no recent heating cycles' : undefined}
+                                        style={row.avg_heat_cycle_cf ? { color: '#9ca3af', fontStyle: 'italic' } : undefined}>
+                                    {row.avg_heat_cycle.toFixed(1)}
+                                  </span>
+                                : 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
@@ -3400,7 +3431,12 @@
                               style={{...cellStyle, textAlign: 'right', paddingRight: '1rem'}}
                               onClick={() => handleCellClick('Cool Cycle', siteName)}
                             >
-                              {row.avg_cool_cycle?.toFixed(1) || 'N/A'}
+                              {row.avg_cool_cycle != null
+                                ? <span title={row.avg_cool_cycle_cf ? 'Carried forward \u2014 no recent cooling cycles' : undefined}
+                                        style={row.avg_cool_cycle_cf ? { color: '#9ca3af', fontStyle: 'italic' } : undefined}>
+                                    {row.avg_cool_cycle.toFixed(1)}
+                                  </span>
+                                : 'N/A'}
                             </td>
                             <td 
                               className="clickable-cell"
